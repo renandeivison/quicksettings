@@ -1,5 +1,6 @@
-<img width="400" alt="FileManager_2026-06-19_234143" src="https://github.com/user-attachments/assets/1baa2894-8979-476d-8259-3c4c80d94669" />
-<img width="400" alt="FileManager_2026-06-19_234139" src="https://github.com/user-attachments/assets/b101bd9c-205d-465d-9f1e-c000b3867404" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234143" src="https://github.com/user-attachments/assets/e79b715b-a2b6-47b3-8a13-8e53601d3a50" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_233942" src="https://github.com/user-attachments/assets/6b5f8aaf-4d37-439d-91ad-71b387d89b64" />
+
 
 # Quick Settings Plugin for KOReader
 
