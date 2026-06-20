@@ -312,7 +312,7 @@ function QuickSettingsPlugin:init()
                 if NetworkMgr:isWifiOn() then 
                     NetworkMgr:toggleWifiOff(onFinish, true) 
                 else 
-                    -- Aqui passamos a configuração de exibir a rede (terceiro parâmetro)
+                    -- CORREÇÃO APLICADA AQUI
                     NetworkMgr:toggleWifiOn(onFinish, config.show_available_networks, true) 
                 end
             end,
@@ -320,6 +320,7 @@ function QuickSettingsPlugin:init()
                 _toggling_wifi = true
                 touch_menu:updateItems(1)
                 local function do_connect() 
+                    -- CORREÇÃO APLICADA AQUI TAMBÉM
                     NetworkMgr:toggleWifiOn(function() 
                         _toggling_wifi = false
                         if touch_menu.item_table and touch_menu.item_table.panel then touch_menu:updateItems(1) end 
@@ -779,11 +780,8 @@ function QuickSettingsPlugin:init()
     ReaderMenu._getTabIndexFromLocation = function(self, ges) return self.last_tab_index end
     FileManagerMenu._getTabIndexFromLocation = function(self, ges) return self.last_tab_index end
 
-    local quick_settings_tab = { 
-        icon = "plugins/quicksettings.koplugin/icons/quicksettings", 
-        remember = false, 
-        panel = createQuickSettingsPanel 
-    }
+    local quick_settings_tab = { icon = "quicksettings", remember = false, panel = createQuickSettingsPanel }
+
     local function buildSettingsMenu()
         local button_toggle_items = {}
         for _, id in ipairs(config_default.button_order) do
