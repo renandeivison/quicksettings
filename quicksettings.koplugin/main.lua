@@ -246,9 +246,9 @@ end
 
 function QuickSettingsPlugin:init()
     local config_default = {
-        button_order = { "wifi", "night", "rotate", "usb", "search", "cloud", "zlibrary", "calibre", "calibre_search", "streak", "localsend", "filebrowser", "stats_progress", "stats_calendar", "battery_stats", "restart", "exit", "sleep" },
+        button_order = { "wifi", "night", "frontlight", "rotate", "rotation", "usb", "search", "cloud", "zlibrary", "calibre", "calibre_search", "streak", "localsend", "filebrowser", "stats_progress", "stats_calendar", "battery_stats", "restart", "exit", "sleep" },
         show_buttons = {
-            wifi = true, night = true, rotate = true, search = false, usb = false, cloud = false,
+            wifi = true, night = true, front light = true, rotate = true, rotation = false, search = false, usb = false, cloud = false,
             zlibrary = false, calibre = false, calibre_search = false, restart = true, exit = true, sleep = true,
             streak = false, filebrowser = false, stats_progress = false, stats_calendar = false, battery_stats = false,
             localsend = false,
@@ -341,6 +341,24 @@ function QuickSettingsPlugin:init()
                 UIManager:setDirty("all", "full")
             end,
         },
+        frontlight = {
+            icon = "lightbulb",
+            label = _("Frontlight"),
+            active_func = function() return Device:getPowerDevice():isFrontlightOn() end,
+            callback = function(touch_menu)
+                Device:getPowerDevice():toggleFrontlight()
+                touch_menu:updateItems(1)
+            end,
+        },
+        rotation = {
+            icon = "quick_rotate",
+            label = _("Rotation"),
+            active_func = function() return not G_reader_settings:isTrue("input_ignore_gsensor") end,
+            callback = function(touch_menu)
+                UIManager:broadcastEvent(Event:new("ToggleGSensor"))
+                touch_menu:updateItems(1)
+            end,
+        },
         rotate = { icon = "quick_rotate", label = _("Rotate"), callback = function() UIManager:broadcastEvent(Event:new("IterateRotation")) end },
         usb = { icon = "quick_usb", label = _("USB"), callback = function() if Device:canToggleMassStorage() then UIManager:broadcastEvent(Event:new("RequestUSBMS")) end end },
         restart = { icon = "quick_restart", label = _("Restart"), callback = function() UIManager:show(ConfirmBox:new{ text = _("Are you sure you want to restart KOReader?"), ok_text = _("Restart"), ok_callback = function() UIManager:broadcastEvent(Event:new("Restart")) end }) end },
@@ -401,7 +419,7 @@ function QuickSettingsPlugin:init()
     }
 
     local button_display_names = {
-        wifi = _("Wi-Fi"), night = _("Night mode"), rotate = _("Rotate"), usb = _("USB"), restart = _("Restart"), exit = _("Exit"), sleep = _("Sleep"), search = _("File search"), cloud = _("Cloud storage"), zlibrary = _("Z-Library"), calibre = _("Calibre"), calibre_search = _("Calibre Search"), streak = _("Streak"), localsend = _("LocalSend"), filebrowser = _("File Browser"), stats_progress = _("Reading Progress"), stats_calendar = _("Reading Calendar"), battery_stats = _("Battery Stats"),
+        wifi = _("Wi-Fi"), night = _("Night mode"), front light = -("Frontlight"), rotate = _("Rotate"), rotation = _("Rotation"), usb = _("USB"), restart = _("Restart"), exit = _("Exit"), sleep = _("Sleep"), search = _("File search"), cloud = _("Cloud storage"), zlibrary = _("Z-Library"), calibre = _("Calibre"), calibre_search = _("Calibre Search"), streak = _("Streak"), localsend = _("LocalSend"), filebrowser = _("File Browser"), stats_progress = _("Reading Progress"), stats_calendar = _("Reading Calendar"), battery_stats = _("Battery Stats"),
     }
 
     -- ============================================================
