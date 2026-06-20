@@ -84,7 +84,7 @@ Once installed, you can configure the plugin directly within KOReader:
 2. Navigate to the **Gear icon (Settings)** -> **Quick settings**.
 3. From here, you can:
     * Enable or disable specific action buttons.
-    * Tap **"Organizar botões"** (Arrange buttons) to change their sequence.
+    * Tap **"Arrange buttons"** to change their sequence.
     * Toggle the visibility of the Brightness and Warmth sliders.
     * Toggle the option to **show or hide the list of available Wi-Fi networks** immediately upon turning Wi-Fi on.
 
