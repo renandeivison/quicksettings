@@ -31,13 +31,13 @@ This project is a hybrid merge of two excellent community resources, compiled an
 1.  **Download the plugin:** Copy the `main.lua` file from this repository.
 2.  **Access your device directory:** Connect your e-reader to your computer via USB, or use an SSH/SFTP connection.
 3.  **Navigate to the plugins folder:** Go to the KOReader internal directory:
-```bash
+
     koreader/plugins/
-    ```
+
 4.  **Create a plugin folder:** Create a new folder named `quicksettings.koplugin`:
-```bash
+
     koreader/plugins/quicksettings.koplugin/
-    ```
+
 5.  **Place the file:** Paste the `main.lua` file inside that folder.
 6.  **Restart KOReader:** Safely eject your device or restart the KOReader software.
 
