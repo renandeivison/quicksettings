@@ -1,3 +1,14 @@
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234143" src="https://github.com/user-attachments/assets/1baa2894-8979-476d-8259-3c4c80d94669" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234139" src="https://github.com/user-attachments/assets/b101bd9c-205d-465d-9f1e-c000b3867404" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234135" src="https://github.com/user-attachments/assets/d549f6a2-0cfb-4a2c-85f8-4cec79821236" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234100" src="https://github.com/user-attachments/assets/00744255-50a6-4184-b32c-17040c342b00" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234052" src="https://github.com/user-attachments/assets/8fac28d2-2a57-4082-88e6-82d49be4ff9d" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234046" src="https://github.com/user-attachments/assets/8aa7b64e-921a-423f-9ed8-50d58d289dc8" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234041" src="https://github.com/user-attachments/assets/9cf8bb3e-15d9-4f43-80a9-f7ed0599a8f0" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234037" src="https://github.com/user-attachments/assets/ef86573f-7149-4a3e-9161-7a2d927d6d50" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234018" src="https://github.com/user-attachments/assets/56b2ebe7-55cc-4a11-9670-f6aee1e78d31" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_234012" src="https://github.com/user-attachments/assets/3ea64702-c90d-4151-b432-799b8135adf9" />
+<img width="1272" height="1696" alt="FileManager_2026-06-19_233942" src="https://github.com/user-attachments/assets/cd047d98-c90a-48ca-b8b6-59e44f1276fb" />
 # Quick Settings Plugin for KOReader
 
 A native, clean, and highly customizable **Quick Settings Panel** for KOReader. This plugin combines a beautiful slider interface with an accessible control toggle panel.
