@@ -8,7 +8,7 @@ This project is a hybrid merge of two excellent community resources, compiled an
 
 ---
 
-## Disclaimer & Purpose
+## 📌 Disclaimer & Purpose
 
 > **Note:** This plugin was originally put together purely for my **personal use** to streamline my own e-reader workflow. It is being shared publicly here because members of the community asked for it. 
 > 
@@ -16,7 +16,7 @@ This project is a hybrid merge of two excellent community resources, compiled an
 
 ---
 
-## Features
+## 🚀 Features
 
 *   **Integrated Panel:** Combines your main navigation bar, quick toggle buttons, and frontlight sliders into a single unified menu view.
 *   **ZenUI Sliders:** Upgrades the native KOReader frontlight/warmth bars with smooth, gesture-friendly pill-and-circle sliders.
@@ -26,7 +26,7 @@ This project is a hybrid merge of two excellent community resources, compiled an
 
 ---
 
-## Installation
+## 🛠️ Installation
 
 1.  **Download the plugin:** Copy the `main.lua` file from this repository.
 2.  **Access your device directory:** Connect your e-reader to your computer via USB, or use an SSH/SFTP connection.
@@ -40,15 +40,42 @@ This project is a hybrid merge of two excellent community resources, compiled an
 
 5.  **Place the file:** Paste the `main.lua` file inside that folder.
 
-> **IMPORTANT ICON NOTE:** 
+> ⚠️ **IMPORTANT TAB ICON NOTE:** 
 > * **If you are already using ZenUI:** The plugin tab icon will automatically be pulled from ZenUI. No extra steps are required.
-> * **If you are NOT using ZenUI:** You **must** manually place an icon file named `quicksettings.svg` into your KOReader icons directory (`koreader/icons/`). Otherwise, the menu tab icon will not display correctly.
+> * **If you are NOT using ZenUI:** You **must** manually place an icon file named `quicksettings.svg` into your KOReader icons directory (`koreader/icons/`). Otherwise, the main menu tab icon will not display correctly.
 
 6.  **Restart KOReader:** Safely eject your device or restart the KOReader software.
 
 ---
 
-## Configuration
+## 🎨 Icons Reference
+
+If any specific button icon does not show up on your interface, it means your current KOReader setup or theme is missing that asset. You can fix this manually by adding the missing `.svg` file to your `koreader/icons/` directory using the following exact filenames:
+
+| Feature / Button | Required SVG Filename |
+| :--- | :--- |
+| **Wi-Fi** | `quick_wifi.svg` |
+| **Night Mode** | `quick_nightmode.svg` |
+| **Rotate** | `quick_rotate.svg` |
+| **USB** | `quick_usb.svg` |
+| **Restart** | `quick_restart.svg` |
+| **Exit** | `quick_exit.svg` |
+| **Sleep** | `quick_sleep.svg` |
+| **Search** | `quick_search.svg` |
+| **Cloud** | `quick_cloud.svg` |
+| **Z-Library** | `quick_zlib.svg` |
+| **Calibre Search** | `quick_search.svg` |
+| **Calibre** | `quick_calibre.svg` |
+| **Streak** | `quick_streak.svg` |
+| **LocalSend** | `quick_localsend.svg` |
+| **File Browser** | `quick_filebrowser.svg` |
+| **Reading Progress** | `quick_stats_progress.svg` |
+| **Reading Calendar** | `quick_stats_calendar.svg` |
+| **Battery Stats** | `quick_battery.svg` |
+
+---
+
+## ⚙️ Configuration
 
 Once installed, you can configure the plugin directly within KOReader:
 1. Open the top menu in KOReader.
@@ -61,7 +88,7 @@ Once installed, you can configure the plugin directly within KOReader:
 
 ---
 
-## Credits & Acknowledgments
+## 🤝 Credits & Acknowledgments
 
 This plugin would not be possible without the hard work of the original developers:
 *   **AnthonyGress** for the beautiful [ZenUI slider engine](https://github.com/AnthonyGress/zen_ui.koplugin) implementation.
