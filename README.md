@@ -20,7 +20,7 @@ This project is a hybrid merge of two excellent community resources, compiled an
 
 *   **Integrated Panel:** Combines your main navigation bar, quick toggle buttons, and frontlight sliders into a single unified menu view.
 *   **ZenUI Sliders:** Upgrades the native KOReader frontlight/warmth bars with smooth, gesture-friendly pill-and-circle sliders.
-*   **Single-Row Toggles:** Supports up to 7 configurable quick-action buttons arranged perfectly to prevent interface crowding.
+*   **Dynamic Grid Layout:** Displays a perfectly proportioned single row when you select up to 7 buttons. If you enable more than 7 items, the plugin automatically adds new rows to accommodate your selection cleanly.
 *   **Extensive App Toggles:** Easy access to Wi-Fi, Night Mode, Rotation, USB Mass Storage, Restart/Exit, Search, and popular plugins like Z-Library, Calibre, Reading Streak, LocalSend, and File Browser.
 *   **Native Customization Menu:** Injects seamlessly into KOReader's native settings menu (`Settings -> Quick settings`), allowing you to toggle slider visibility, enforce opening defaults, and reorder your button layout via a drag-and-drop sort widget.
 
@@ -33,8 +33,8 @@ This project is a hybrid merge of two excellent community resources, compiled an
 3.  **Navigate to the plugins folder:** Go to the KOReader internal directory:
 
     koreader/plugins/
-
-4.  **Create a plugin folder:** Create a new folder named `quicksettings.koplugin`:
+ 
+ 4.  **Create a plugin folder:** Create a new folder named `quicksettings.koplugin`:
 
     koreader/plugins/quicksettings.koplugin/
 
@@ -52,6 +52,7 @@ Once installed, you can configure the plugin directly within KOReader:
     * Enable or disable specific action buttons.
     * Tap **"Organizar botões"** (Arrange buttons) to change their sequence.
     * Toggle the visibility of the Brightness and Warmth sliders.
+    * Toggle the option to **show or hide the list of available Wi-Fi networks** immediately upon turning Wi-Fi on.
 
 ---
 
