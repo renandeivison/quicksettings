@@ -83,18 +83,18 @@ You can easily completely customize the button interface with your own custom ic
 | `quick_zlib` | Z-Library Plugin | Launches local Z-Library portal |
 | `quick_calibre` | Calibre Plugin | Launches Calibre connection menu |
 | `quick_streak` | Reading Streak Plugin | Reviews your daily reading metrics |
-| `quick_filebrowserplus` | `filebrowserplus.koplugin` | Toggles server state and reads local PID runtime files |
+| `quick_filebrowserplus` | filebrowserplus.koplugin | Toggles server state and reads local PID runtime files |
 | `quick_stats_progress` | Core Reading Statistics | Direct path to your reading progress |
 | `quick_stats_calendar` | Core Reading Statistics | Direct path to your reading history calendar |
 | `quick_battery` | Core Battery Module | Reviews battery lifecycle diagnostics |
-| `quickrss` | `quickrss.koplugin` | Launches direct Feed View via core UI modules |
-| `opds` | `opds.koplugin` | Broadcasts standard `ShowOPDSCatalog` dispatch event |
-| `puzzles` | `slidepuzzle.koplugin` | Launches standard `SlidePuzzleOpen` overlay |
-| `crossword` | `crossword.koplugin` | Broadcasts native Dispatcher `CrosswordMenu` menu event |
-| `connections` | `connections.koplugin` | Invokes the NYT Connections `addToMainMenu` callback |
-| `chess` | `chess.koplugin` | Dispatches the native `KochessStart` event loop |
-| `casual_chess` | `casualkochess.koplugin` | Dispatches the native `CasualChessStart` event loop |
-| `kosync` | `kosync.koplugin` | Forces a background sync via the active running instance |
+| `quickrss` | quickrss.koplugin | Launches direct Feed View via core UI modules |
+| `opds` | opds.koplugin | Broadcasts standard `ShowOPDSCatalog` dispatch event |
+| `puzzles` | slidepuzzle.koplugin | Launches standard `SlidePuzzleOpen` overlay |
+| `crossword` | crossword.koplugin | Broadcasts native Dispatcher `CrosswordMenu` menu event |
+| `connections` | connections.koplugin | Invokes the NYT Connections `addToMainMenu` callback |
+| `chess` | chess.koplugin | Dispatches the native `KochessStart` event loop |
+| `casual_chess` | casualkochess.koplugin | Dispatches the native `CasualChessStart` event loop |
+| `kosync` | kosync.koplugin | Forces a background sync via the active running instance |
 
 ---
 
