@@ -58,7 +58,19 @@ You can fully customize the interface by replacing the pre-packed images with yo
 ---
 
 ### Installation Note
-Make sure to extract and place the provided asset pack folder files into your device's root `/koreader/icons/` path. This ensures all dashboard toggles and the top control tab handle drawing updates correctly.
+
+To install the plugin correctly, manually place the extracted files into the following specific directories on your device:
+
+1.  **Icons:** Copy all image assets (such as `.png` or `.svg` files) into the root global directory:
+    ```path
+    koreader/icons/
+    ```
+2.  **Plugin Files:** Copy `main.lua` and the remaining script structure into the dedicated plugin folder:
+    ```path
+    koreader/plugins/quicksettings.koplugin/
+    ```
+
+Restart KOReader after placing the files to load the new settings dashboard interface cleanly.
 
 ### Special Appreciation & Credits
 I want to express my deep, sincere gratitude once again to **AnthonyGress** and **qewer33**. A massive portion of this plugin's underlying layout handling, tracking logic, and interface engine was derived directly from their incredible work and foundational open-source contributions to the KOReader development community.
