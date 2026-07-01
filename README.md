@@ -61,7 +61,7 @@ You can fully customize the interface by replacing the pre-packed images with yo
 | "Crossword" | `quick_crossword.png` | Launches the offline digital crossword puzzle environment. *(Requires `crossword` plugin)* |
 | "NYT Connections" | `quick_connections.png` | Opens the custom word-grouping puzzle adaptation. *(Requires `connections` plugin)* |
 | "Chess" | `quick_chess.png` | Opens the main classic interactive board application interface. *(Requires `chess` plugin)* |
-| "Casual Chess" | `quick_casual_chess.png` | Alternative direct shortcut to friendly or locally saved chess profiles. |
+| "Casual Chess" | `quick_casualchess.png` | Alternative direct shortcut to friendly or locally saved chess profiles. |
 | "Frontlight Control" | *(ZenSlider / Built-in)* | Interactive horizontal slider to increment/decrement screen brightness percentage. |
 | "Warmth Control" | *(ZenSlider / Built-in)* | Interactive horizontal slider to adjust amber warm-light levels. *(Hardware Dependent)* |
 | "Font Size" | *(ZenSlider / Built-in)* | Quick increment adjustments (+/-) for active document typesetting font scaling. |
