@@ -247,14 +247,14 @@ end
 
 function QuickSettingsPlugin:init()
     local config_default = {
-        button_order = { "wifi", "night", "frontlight", "rotate", "rotation", "usb", "search", "cloud", "zlibrary", "calibre", "calibre_search", "streak", "localsend", "stats_progress", "stats_calendar", "battery_stats", "restart", "exit", "sleep", "quickrss", "opds", "puzzle", "crossword", "connections", "chess", "casualchess", "kosync", "filebrowserplus", "bookfusion", "focus" },
+        button_order = { "wifi", "night", "frontlight", "rotate", "rotation", "usb", "search", "cloud", "zlibrary", "calibre", "calibre_search", "streak", "localsend", "stats_progress", "stats_calendar", "battery_stats", "restart", "exit", "sleep", "quickrss", "opds", "puzzle", "crossword", "connections", "casualchess", "kosync", "filebrowserplus", "bookfusion", "focus" },
         show_buttons = {
             wifi = true, night = true, frontlight = true, rotate = true, rotation = false, search = false, usb = false, cloud = false,
             zlibrary = false, calibre = false, calibre_search = false, restart = true, exit = true, sleep = true,
             streak = false, stats_progress = false, stats_calendar = false, battery_stats = false,
             localsend = false,
             quickrss = false, opds = false, puzzle = false, crossword = false, connections = false,
-            chess = false, casualchess = false, kosync = false, filebrowserplus = false, bookfusion = false, 
+            casualchess = false, kosync = false, filebrowserplus = false, bookfusion = false, focus = false,
         },
         show_frontlight = true,
         show_warmth = true,
@@ -265,7 +265,7 @@ function QuickSettingsPlugin:init()
         focus_hidden_tabs = {},
     }
 
-    local config = G_reader_settings:readSetting("quick_settings_plugin_v1", {})
+    local config = G_reader_settings:readSetting("quick_settings_plugin", {})
     for k, v in pairs(config_default) do
         if config[k] == nil then config[k] = util.tableDeepCopy(v) end
     end
@@ -476,22 +476,6 @@ function QuickSettingsPlugin:init()
                 end
             end,
         },
-        chess = {
-            icon = "quick_chess", label = _("Chess"),
-            visible_func = function() return hasPlugin("chess") end,
-            callback = function(touch_menu)
-                touch_menu:closeMenu()
-                local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
-                local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
-                local ui = (ok_f and FileManager.instance) or (ok_r and ReaderUI.instance)
-                if ui and ui.kochess then
-                    ui.kochess:startGame()
-                else
-                    local InfoMessage = require("ui/widget/infomessage")
-                    UIManager:show(InfoMessage:new{ text = _("Chess plugin is not installed.") })
-                end
-            end,
-        },
         casualchess = {
             icon = "quick_chess", label = _("Casual Chess"),
             visible_func = function() return hasPlugin("casualkochess") end,
@@ -597,7 +581,7 @@ function QuickSettingsPlugin:init()
                     local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
                     local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
                     local cur_ui = (ok_f and FileManager.instance) or (ok_r and ReaderUI.instance)
-                    local known_ids = { quicksettings = true, filemanager = true, focus = true }
+                    local known_ids = { quicksettings = true, filemanager = true }
                     for _, t in ipairs(all_tabs) do known_ids[t.id] = true end
                     if cur_ui and cur_ui.menu and cur_ui.menu.tab_item_table then
                         for _, tab in ipairs(cur_ui.menu.tab_item_table) do
@@ -661,7 +645,11 @@ function QuickSettingsPlugin:init()
                                     {
                                         text = _("Cancel"),
                                         callback = function()
-                                            UIManager:close(dialog)
+                                            if dialog then
+                                                local dimen = dialog:getSize()
+                                                UIManager:close(dialog)
+                                                UIManager:setDirty("all", "ui", dimen)
+                                            end
                                         end,
                                     },
                                     {
@@ -719,7 +707,7 @@ function QuickSettingsPlugin:init()
 
     local button_display_names = {
         wifi = _("Wi-Fi"), night = _("Night mode"), frontlight = _("Frontlight"), rotate = _("Rotate"), rotation = _("Rotation"), usb = _("USB"), restart = _("Restart"), exit = _("Exit"), sleep = _("Sleep"), search = _("File search"), cloud = _("Cloud storage"), zlibrary = _("Z-Library"), calibre = _("Calibre"), calibre_search = _("Calibre Search"), streak = _("Streak"), localsend = _("LocalSend"), stats_progress = _("Reading Progress"), stats_calendar = _("Reading Calendar"), battery_stats = _("Battery Stats"),
-        quickrss = _("QuickRSS"), opds = _("OPDS"), puzzle = _("Puzzle"), crossword = _("Crossword"), connections = _("Connections"), chess = _("Chess"), casualchess = _("Casual Chess"), kosync = _("KOSync"), filebrowserplus = _("FileBrowser+"), bookfusion = _("BookFusion"), focus = _("Focus Mode"),
+        quickrss = _("QuickRSS"), opds = _("OPDS"), puzzle = _("Puzzle"), crossword = _("Crossword"), connections = _("Connections"), casualchess = _("Casual Chess"), kosync = _("KOSync"), filebrowserplus = _("FileBrowser+"), bookfusion = _("BookFusion"), focus = _("Focus Mode"),
     }
 
     -- ============================================================
