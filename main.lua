@@ -265,7 +265,7 @@ function QuickSettingsPlugin:init()
         focus_hidden_tabs = {},
     }
 
-    local config = G_reader_settings:readSetting("quick_settings_plugin", {})
+    local config = G_reader_settings:readSetting("quick_settings_plugin_v1", {})
     for k, v in pairs(config_default) do
         if config[k] == nil then config[k] = util.tableDeepCopy(v) end
     end
@@ -597,7 +597,7 @@ function QuickSettingsPlugin:init()
                     local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
                     local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
                     local cur_ui = (ok_f and FileManager.instance) or (ok_r and ReaderUI.instance)
-                    local known_ids = { quicksettings = true, filemanager = true }
+                    local known_ids = { quicksettings = true, filemanager = true, focus = true }
                     for _, t in ipairs(all_tabs) do known_ids[t.id] = true end
                     if cur_ui and cur_ui.menu and cur_ui.menu.tab_item_table then
                         for _, tab in ipairs(cur_ui.menu.tab_item_table) do
