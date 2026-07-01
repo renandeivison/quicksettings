@@ -8,118 +8,57 @@
 
 # Quick Settings Plugin for KOReader
 
-A native, clean, and highly customizable **Quick Settings Panel** for KOReader. This plugin combines a beautiful slider interface with an accessible control toggle panel.
+A highly customizable, modular, and fast touch-based Quick Settings panel for KOReader. This plugin adds an intuitive mobile-like toggle dashboard to your e-reader's top menu bar, making it incredibly easy to switch profiles, control radios, launch plugins, and tweak your display on the fly.
 
-This project is a hybrid merge of two excellent community resources, compiled, reworked, and optimized using AI assistance:
-*   **ZenUI Sliders:** Derived from [AnthonyGress/zen_ui.koplugin](https://github.com/AnthonyGress/zen_ui.koplugin).
-*   **Quick Settings Logic:** Derived from the `2-quick-settings.lua` patch found in [qewer33/koreader-patches](https://github.com/qewer33/koreader-patches).
+***
 
----
+### Key Features
 
-## Disclaimer & Purpose
-
-> **Note:** This plugin was originally put together purely for my **personal use** to streamline my own e-reader workflow. It is being shared publicly here because members of the community asked for it. 
-> 
-> As a personal project maintained in my spare time, it is provided "as-is." While you are more than welcome to use, fork, or modify it, please keep in mind that official support or frequent updates are not guaranteed.
-
- **Tested Device:** This plugin was developed and tested exclusively on a **Kindle Paperwhite 11/12 Signature Edition**. While it is designed to be compatible with other devices running KOReader, performance and layout rendering on other hardware cannot be guaranteed.
-
----
-
-## Features
-
-*   **Integrated Panel:** Combines your main navigation bar, quick toggle buttons, and frontlight sliders into a single unified menu view.
-*   **ZenUI Sliders:** Upgrades the native KOReader frontlight/warmth bars with smooth, gesture-friendly pill-and-circle sliders.
-*   **Dynamic Grid Layout:** Displays a perfectly proportioned single row when you select up to 7 buttons. If you enable more than 7 items, the plugin automatically adds new rows to accommodate your selection cleanly.
-*   **Smart Hardware & Plugin Autodetection:** Optional buttons are hidden automatically unless their dependencies are met. Buttons for external plugins require those plugins to be installed, while specific hardware toggles (like frontlight and auto-rotation) only appear on devices that physically support those features.
-*   **Robust Environment Compatibility:** Re-engineered internal plugin detection paths to work seamlessly across all platforms, including Kindle devices where working directories vary from the KOReader root.
-*   **Native Customization Menu:** Injects seamlessly into KOReader's native settings menu (`Settings -> Quick settings`), allowing you to toggle slider visibility, enforce opening defaults, and reorder your button layout via a drag-and-drop sort widget.
-
- **Important Note on Core/External Plugins:** This plugin does **not** bundle any third-party tools or games (like Chess, Crossword, QuickRSS, etc.). It only acts as a control panel shortcut to trigger them. All dependent plugins must be downloaded and installed separately on your device for their respective buttons to appear.
-
+*   **Global Asset System:** All button icons have been moved back to the main `koreader/icons/` directory. The release pack already includes the required assets—simply place them into your system's root icons folder for clean system-wide integration.
+*   **Hardware-Adaptive Controls:** Includes intelligent toggles for **Frontlight Backlight** and **G-Sensor Auto-Rotation** that dynamically evaluate your device hardware capability—they will *only* display if your e-reader physically supports those components.
+*   **Dynamic Multifile Layout:** Buttons seamlessly arrange themselves side-by-side up to **7 items per row**. Once that structural limit is hit, the plugin automatically breaks into a clean new row. You don't have to keep all toggles active at once unless you want to!
+*   **Focus Mode Integration:** Hide distracting top menu bar tabs completely. Tap the **Focus Mode** button to pull up a checklist, choose which native KOReader tabs to hide (e.g., Typesetting, Tools, Navigation), and read completely distraction-free.
+*   **Extensive Plugin Support:** Acts as a centralized launcher interface for external tools. Natively supports tracking, running, or mapping state indicators for:
+    *   **FileBrowser+** (validates background PID status)
+    *   **BookFusion** (smart gateway based on active login state)
+    *   **LocalSend** (tracks active file transfer background servers)
+    *   **Calibre Companion & Search**
+    *   Reading Streak calendars, Advanced Battery Statistics, KOReader Progress History, Chess, Crosswords, NYT Connections, and OPDS Catalogs.
+*   **Fully Tested:** Performance and render pipelines are fully optimized for electronic paper displays, specifically benchmarked on the **Kindle Paperwhite 11/12 Signature Edition**.
 
 ---
 
-## 🛠️ Installation & Upgrading
+### Custom Icon & Asset Guide
 
-1.  **Download the plugin:** Download the latest version of this repository.
-2.  **Access your device directory:** Connect your e-reader to your computer via USB, or use an SSH/SFTP connection.
-3.  **Navigate to the plugins folder:** Go to the KOReader internal directory:
-    ```bash
-    koreader/plugins/
-    ```
-4.  **Create/Replace the plugin folder:** Ensure your folder is named exactly `quicksettings.koplugin`:
-    ```bash
-    koreader/plugins/quicksettings.koplugin/
-    ```
-5.  **Place the files:** Paste the `main.lua` file **and the accompanying `icons/` folder** inside `quicksettings.koplugin/`.
+You can fully customize the interface by replacing the pre-packed images with your preferred graphics. Make sure to keep the exact filename matching the display mappings inside your `/koreader/icons/` folder:
 
-> **IMPORTANT TAB ICON NOTE:** 
-> * **If you are already using ZenUI:** The main plugin tab icon will automatically be pulled from ZenUI. No extra steps are required.
-> * **If you are NOT using ZenUI:** You **must** manually place an icon file into your KOReader icons directory at `/koreader/icons/quicksettings.svg` or `/koreader/icons/quicksettings.png`. Otherwise, the main menu tab icon will not display correctly.
-
-6.  **Restart KOReader:** Safely eject your device or restart the KOReader software. *Note: If upgrading from an older version, your existing button sequence configuration will be automatically preserved and backfilled.*
-
----
-
-## Localized Icon System & Customization
-
-All button action icons now load locally directly from `plugins/quicksettings.koplugin/icons/` instead of polluting KOReader's global cache. 
-
-### PNG → SVG Auto-Fallback
-The asset loader automatically detects the file type. If a preferred `.png` icon is missing from the local folder, it will instantly fall back and look for the `.svg` variant at the same path. 
-
-### Using Custom Icons
-You can fully customize the interface by replacing the original images with your preferred graphics. The plugin manages icon loading locally from `plugins/quicksettings.koplugin/icons/`. Make sure to keep the exact filename (with the original `.png` extension or the automatic `.svg` fallback) as specified in the table below:
-
-| Display Name (Label) | Icon Path in Plugin | Behavior / Hardware or Plugin Dependency |
+| Display Name (Label) | Icon Filename | Behavior / Hardware or Plugin Dependency |
 | :--- | :--- | :--- |
-| "Wi-Fi" | `icons/quick_wifi.png` | Toggles the native Wi-Fi connection (Optionally opens the available networks list). |
-| "Night" | `icons/quick_nightmode.png` | Toggles Night Mode colors (e-ink screen inversion). |
-| "Frontlight" | `icons/lightbulb.png` | Toggles the screen backlight completely On/Off. *(Discovered only on devices with Frontlight)* |
-| "Rotation" | `icons/quick_rotate.png` | Enables/Disables the automatic screen rotation sensor. *(Discovered only on devices with G-Sensor / Accelerometer)* |
-| "Rotate" | `icons/quick_rotate.png` | Manually rotates the screen in 90° cycles (IterateRotation). |
-| "USB" | `icons/quick_usb.png` | Triggers the USB Mass Storage mode if supported by the hardware. |
-| "Restart" | `icons/quick_restart.png` | Displays a confirmation dialog box to restart KOReader. |
-| "Exit" | `icons/quick_exit.png` | Displays a confirmation dialog box to exit KOReader. |
-| "Sleep" | `icons/quick_sleep.png` | Suspends or powers off the e-reader (depending on hardware support). |
-| "Search" | `icons/quick_search.png` | Triggers the native KOReader file search event. |
-| "Cloud" | `icons/quick_cloud.png` | Opens the native cloud storage manager. |
-| "Z-Lib" | `icons/quick_zlib.png` | Opens the Z-Library plugin gateway. *(Requires the `zlibrary` plugin installed)* |
-| "Search" | `icons/quick_search.png` | Opens the book search menu within the Calibre catalog. *(Requires the `calibre` plugin installed)* |
-| "Calibre" | `icons/quick_calibre.png` | Starts or stops the wireless connection with the Calibre Companion server. *(Requires `calibre` plugin)* |
-| "Streak" | `icons/quick_streak.png` | Displays the reading goals calendar from the Reading Streak plugin. *(Requires `readingstreak` plugin)* |
-| "LocalSend" | `icons/quick_localsend.png` | Toggles the LocalSend server status by tracking background PID files. *(Requires `localsend` plugin)* |
-| "Progress" | `icons/quick_stats_progress.png` | Direct shortcut to the current reading progress statistics and graphs. *(Requires `statistics` plugin)* |
-| "Calendar" | `icons/quick_stats_calendar.png` | Direct shortcut to the reading history calendar view. *(Requires `statistics` plugin)* |
-| "Battery" | `icons/quick_battery.png` | Displays advanced battery statistics and health cycles. *(Requires `batterystat` plugin)* |
-| "QuickRSS" | `icons/quick_quickrss.png` | Opens the feed reader directly through native feed view UI modules. *(Requires `quickrss` plugin)* |
-| "OPDS" | `icons/quick_opds.png` | Opens the external OPDS catalog catalog. *(Requires `opds` plugin)* |
-| "Puzzle" | `icons/quick_puzzle.png` | Opens the integrated Slide Puzzle mini-game. *(Requires `slidepuzzle` plugin)* |
-| "Crossword" | `icons/quick_crossword.png` | Triggers the built-in Crossword puzzle game menu. *(Requires `crossword` plugin)* |
-| "Connections" | `icons/quick_connections.png` | Runs the main callback for the NYT Connections game interface. *(Requires `connections` plugin)* |
-| "Chess" | `icons/quick_chess.png` | Starts the game loop for the native KOChess chess engine. *(Requires `chess` plugin)* |
-| "Casual Chess" | `icons/quick_casualchess.png` | Starts the game loop for the Casual KOChess variant. *(Requires `casualkochess` plugin)* |
-| "Sync" | `icons/quick_sync.png` | Forces a background sync of your book progress with the KOSync server. |
-| "FileBrowser+" | `icons/quick_filebrowser.png` | Toggles the HTTP server and validates its status via background PID processes. *(Requires plugin)* |
----
-
-## ⚙️ Configuration
-
-Once installed, you can configure the plugin directly within KOReader:
-1. Open the top menu in KOReader.
-2. Navigate to the **Gear icon (Settings)** -> **Quick settings**.
-3. From here, you can:
-    * Enable or disable specific action buttons.
-    * Tap **"Arrange buttons"** to change their sequence.
-    * Toggle the visibility of the Brightness and Warmth sliders.
-    * Toggle the option to **show or hide the list of available Wi-Fi networks** immediately upon turning Wi-Fi on.
+| Dynamically switches between SSID, "Connecting...", or "Wi-Fi" | `quick_wifi.png` | Toggles native Wi-Fi connection and manages network scans safely. |
+| "Night" | `quick_nightmode.png` | Inverts screen colors (e-ink native inversion). |
+| "Frontlight" | `lightbulb.png` | Blinks/Toggles the backlight completely on or off. *(Hardware Dependent)* |
+| "Rotation" | `quick_rotate.png` | Enables/Disables the background G-Sensor accelerometer. *(Hardware Dependent)* |
+| "Rotate" | `quick_rotate.png` | Manually steps the active frame buffer screen in 90° cycles. |
+| "Focus Mode" | `quick_focus.png` | Opens configuration panel to isolate or hide top menu bars. |
+| "USB" | `quick_usb.png` | Invokes the native USB Mass Storage mode mounting window. |
+| "Restart" | `quick_restart.png` | Prompts an overlay confirmation prompt to restart KOReader safely. |
+| "Exit" | `quick_exit.png` | Prompts an overlay confirmation prompt to shut down KOReader. |
+| "Sleep" | `quick_sleep.png` | Drops the hardware into suspend or power-off mode. |
+| "Search" | `quick_search.png` | Launches the default KOReader global file crawler. |
+| "Cloud" | `quick_cloud.png` | Enters the built-in cloud-storage profile manager. |
+| "Z-Lib" | `quick_zlib.png` | Launches the Z-Library gateway. *(Requires `zlibrary` plugin)* |
+| "BookFusion" | `quick_bookfusion.png` | Performs lookup or device link protocols. *(Requires `bookfusion` plugin)* |
+| "Calibre" | `quick_calibre.png` | Opens background sockets with the Calibre Companion server. *(Requires `calibre`)* |
+| "Streak" | `quick_streak.png` | Draws daily reading tracking milestones. *(Requires `readingstreak` plugin)* |
+| "LocalSend" | `quick_localsend.png` | Initializes or kills background LocalSend server processes. *(Requires `localsend`)* |
+| "Progress" / "Calendar" | `quick_stats_...` | Shortcuts to reader progress tracking modules. *(Requires `statistics` plugin)* |
+| "Battery" | `quick_battery.png` | Opens advanced runtime statistics modules. *(Requires `batterystat` plugin)* |
+| "FileBrowser+" | `quick_filebrowser.png` | Activates background HTTP server bindings via PID checks. *(Requires plugin)* |
 
 ---
 
-## 🤝 Credits & Acknowledgments
+### Installation Note
+Make sure to extract and place the provided asset pack folder files into your device's root `/koreader/icons/` path. This ensures all dashboard toggles and the top control tab handle drawing updates correctly.
 
-This plugin would not be possible without the hard work of the original developers:
-*   **AnthonyGress** for the beautiful [ZenUI slider engine](https://github.com/AnthonyGress/zen_ui.koplugin) implementation.
-*   **qewer33** for the versatile [Quick Settings patch logic](https://github.com/qewer33/koreader-patches).
-*   The **KOReader Development Team** for creating an amazingly extensible e-reading platform.
+### Special Appreciation & Credits
+I want to express my deep, sincere gratitude once again to **AnthonyGress** and **qewer33**. A massive portion of this plugin's underlying layout handling, tracking logic, and interface engine was derived directly from their incredible work and foundational open-source contributions to the KOReader development community.
