@@ -14,17 +14,17 @@ A highly customizable, modular, and fast touch-based Quick Settings panel for KO
 
 ### Key Features
 
-*   **Global Asset System:** All button icons have been moved back to the main `koreader/icons/` directory. The release pack already includes the required assets—simply place them into your system's root icons folder for clean system-wide integration.
-*   **Hardware-Adaptive Controls:** Includes intelligent toggles for **Frontlight Backlight** and **G-Sensor Auto-Rotation** that dynamically evaluate your device hardware capability—they will *only* display if your e-reader physically supports those components.
-*   **Dynamic Multifile Layout:** Buttons seamlessly arrange themselves side-by-side up to **7 items per row**. Once that structural limit is hit, the plugin automatically breaks into a clean new row. You don't have to keep all toggles active at once unless you want to!
-*   **Focus Mode Integration:** Hide distracting top menu bar tabs completely. Tap the **Focus Mode** button to pull up a checklist, choose which native KOReader tabs to hide (e.g., Typesetting, Tools, Navigation), and read completely distraction-free.
-*   **Extensive Plugin Support:** Acts as a centralized launcher interface for external tools. Natively supports tracking, running, or mapping state indicators for:
-    *   **FileBrowser+** (validates background PID status)
-    *   **BookFusion** (smart gateway based on active login state)
-    *   **LocalSend** (tracks active file transfer background servers)
-    *   **Calibre Companion & Search**
-    *   Reading Streak calendars, Advanced Battery Statistics, KOReader Progress History, Chess, Crosswords, NYT Connections, and OPDS Catalogs.
-*   **Fully Tested:** Performance and render pipelines are fully optimized for electronic paper displays, specifically benchmarked on the **Kindle Paperwhite 11/12 Signature Edition**.
+* **Global Asset System:** All button icons have been moved back to the main `koreader/icons/` directory. The release pack already includes the required assets—simply place them into your system's root icons folder for clean system-wide integration.
+* **Hardware-Adaptive Controls:** Includes intelligent toggles for **Frontlight Backlight** and **G-Sensor Auto-Rotation** that dynamically evaluate your device hardware capability—they will *only* display if your e-reader physically supports those components.
+* **Dynamic Multifile Layout:** Buttons seamlessly arrange themselves side-by-side up to **7 items per row**. Once that structural limit is hit, the plugin automatically breaks into a clean new row. You don't have to keep all toggles active at once unless you want to!
+* **Focus Mode Integration:** Hide distracting top menu bar tabs completely. Tap the **Focus Mode** button to pull up a checklist, choose which native KOReader tabs to hide (e.g., Typesetting, Tools, Navigation), and read completely distraction-free.
+* **Extensive Plugin Support:** Acts as a centralized launcher interface for external tools. Natively supports tracking, running, or mapping state indicators for:
+    * **FileBrowser+** (validates background PID status)
+    * **BookFusion** (smart gateway based on active login state)
+    * **LocalSend** (tracks active file transfer background servers)
+    * **Calibre Companion & Search**
+    * Reading Streak calendars, Advanced Battery Statistics, KOReader Progress History, Chess, Crosswords, NYT Connections, and OPDS Catalogs.
+* **Fully Tested:** Performance and render pipelines are fully optimized for electronic paper displays, specifically benchmarked on the **Kindle Paperwhite 11/12 Signature Edition**.
 
 ---
 
@@ -34,7 +34,7 @@ You can fully customize the interface by replacing the pre-packed images with yo
 
 | Display Name (Label) | Icon Filename | Behavior / Hardware or Plugin Dependency |
 | :--- | :--- | :--- |
-| Dynamically switches between SSID, "Connecting...", or "Wi-Fi" | `quick_wifi.png` | Toggles native Wi-Fi connection and manages network scans safely. |
+| "Wi-Fi" | `quick_wifi.png` | Toggles native Wi-Fi connection and manages network scans safely. |
 | "Night" | `quick_nightmode.png` | Inverts screen colors (e-ink native inversion). |
 | "Frontlight" | `lightbulb.png` | Blinks/Toggles the backlight completely on or off. *(Hardware Dependent)* |
 | "Rotation" | `quick_rotate.png` | Enables/Disables the background G-Sensor accelerometer. *(Hardware Dependent)* |
@@ -61,11 +61,11 @@ You can fully customize the interface by replacing the pre-packed images with yo
 
 To install the plugin correctly, manually place the extracted files into the following specific directories on your device:
 
-1.  **Icons:** Copy all image assets (such as `.png` or `.svg` files) into the root global directory:
+1. **Icons:** Copy all image assets (such as `.png` or `.svg` files) into the root global directory:
     ```path
     koreader/icons/
     ```
-2.  **Plugin Files:** Copy `main.lua` and the remaining script structure into the dedicated plugin folder:
+2. **Plugin Files:** Copy `main.lua` and the remaining script structure into the dedicated plugin folder:
     ```path
     koreader/plugins/quicksettings.koplugin/
     ```
@@ -73,4 +73,4 @@ To install the plugin correctly, manually place the extracted files into the fol
 Restart KOReader after placing the files to load the new settings dashboard interface cleanly.
 
 ### Special Appreciation & Credits
-I want to express my deep, sincere gratitude once again to **AnthonyGress** and **qewer33**. A massive portion of this plugin's underlying layout handling, tracking logic, and interface engine was derived directly from their incredible work and foundational open-source contributions to the KOReader development community.
+I want to express my deep, sincere gratitude once again to **[@AnthonyGress](https://github.com/AnthonyGress)** and **[@qewer33](https://github.com/qewer33)**. A massive portion of this plugin's underlying layout handling, tracking logic, and interface engine was derived directly from their incredible work and foundational open-source contributions to the KOReader development community.
