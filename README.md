@@ -14,7 +14,7 @@ A fast, gesture-friendly control panel for [KOReader](https://github.com/koreade
 
 - **One-screen control panel** — a dedicated tab in the file manager / reader menu with a grid of circular action buttons for common settings and actions.
 - **Custom slider widget** — a lightweight, pill-shaped slider (built in, no external dependency) for brightness and warmth, with tap, drag, and swipe support.
-- **Reorderable buttons** — long-press to open a drag-and-drop sorter and arrange the buttons in whatever order you like; hide the ones you don't use.
+- **Reorderable buttons** — arrange the buttons in whatever order you like; hide the ones you don't use.
 - **Focus Mode** — a distraction-free mode that strips down KOReader's main menu to just the tabs you actually use. See the [dedicated section](#focus-mode) below.
 - **Smart integrations** — buttons for other plugins only appear when those plugins are actually installed:
 
