@@ -48,7 +48,7 @@ If a `.png` file is missing, the plugin automatically falls back to the `.svg` v
 |---|---|
 | Wi-Fi | `quick_wifi` |
 | Night Mode | `quick_nightmode` |
-| Frontlight | `quick_nightmode` |
+| Frontlight | `lightbulb` |
 | Rotate | `quick_rotate` |
 | Rotation Sensor | `quick_rotate` |
 | USB | `quick_usb` |
