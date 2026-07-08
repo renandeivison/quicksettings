@@ -23,6 +23,8 @@ local _ = require("gettext")
 local util = require("util")
 local Screen = Device.screen
 local Dispatcher = require("dispatcher")
+local LuaSettings = require("luasettings")
+local T = require("ffi/util").template
 
 local QuickSettingsPlugin = WidgetContainer:extend{
     name = "quicksettings",
@@ -259,7 +261,6 @@ function QuickSettingsPlugin:init()
         show_frontlight = true,
         show_warmth = true,
         show_available_networks = true,
-        custom_buttons = {},
         next_custom_id = 0,
         focus_mode = false,
         focus_hidden_tabs = {},
@@ -284,6 +285,95 @@ function QuickSettingsPlugin:init()
 
     local function saveConfig()
         G_reader_settings:saveSetting("quick_settings_plugin", config)
+    end
+
+    -- ============================================================
+    -- Fase 1 (schema do zen_ui): Camada de dados dos botões customizados
+    -- Arquivo próprio, dentro da pasta do plugin (self.path preenchido pelo
+    -- próprio KOReader antes do init() — frontend/pluginloader.lua:206).
+    --
+    -- Formato de cada entrada, portado de zen_ui.koplugin (confirmado lendo
+    -- modules/settings/sections/app_launcher_settings.lua:417-443):
+    --   custom_buttons_settings.data[id] = {
+    --       name = "...", icon = "...",  -- metadados (nunca uma ação)
+    --       action = { [id_da_acao_1] = true, ... },  -- SEPARADO, não misturado
+    --   }
+    -- A ação fica ANINHADA em .action, não junto com name/icon na mesma
+    -- tabela (diferente do esquema do profiles.koplugin que eu tinha copiado
+    -- antes). Isso importa porque Dispatcher:addSubMenu(caller, items, entry, "action")
+    -- só mexe em entry.action — o item "Nothing" (dispatcher.lua:1046-1055)
+    -- reconstrói SÓ entry.action do zero, nunca toca entry.name/entry.icon.
+    -- ============================================================
+
+    local custom_buttons_file = self.path .. "/custom_buttons.lua"
+    local custom_buttons_settings = LuaSettings:open(custom_buttons_file)
+
+    local function saveCustomButtons()
+        custom_buttons_settings:flush()
+    end
+
+    -- Retorna a tabela de botões customizados (dict: id -> entrada)
+    local function getCustomButtons()
+        return custom_buttons_settings.data
+    end
+
+    local function getCustomButtonById(id)
+        return custom_buttons_settings.data[id]
+    end
+
+    -- Cria um botão customizado vazio (sem ações ainda — elas são atribuídas
+    -- depois via Dispatcher:addSubMenu). `data` deve conter name e icon.
+    -- Retorna o id gerado e a entrada criada. O contador next_custom_id
+    -- continua no config grande (é só um número, sem risco de corrupção).
+    local function addCustomButton(data)
+        config.next_custom_id = (config.next_custom_id or 0) + 1
+        local id = "custom_" .. config.next_custom_id
+        saveConfig()
+        custom_buttons_settings.data[id] = {
+            name = data.name, icon = data.icon, action = {},
+        }
+        saveCustomButtons()
+        return id, custom_buttons_settings.data[id]
+    end
+
+    -- Atualiza nome/ícone (metadados) de um botão existente. As ações em si
+    -- são editadas via Dispatcher:addSubMenu, não por aqui.
+    local function updateCustomButton(id, data)
+        local entry = custom_buttons_settings.data[id]
+        if not entry then return false end
+        if data.name ~= nil then entry.name = data.name end
+        if data.icon ~= nil then entry.icon = data.icon end
+        saveCustomButtons()
+        return true
+    end
+
+    local function removeCustomButton(id)
+        if not custom_buttons_settings.data[id] then return false end
+        custom_buttons_settings.data[id] = nil
+        saveCustomButtons()
+        return true
+    end
+
+
+    -- ============================================================
+    -- Fase 2 (corrigida): título legível de ações do Dispatcher
+    -- settingsList é uma tabela PRIVADA dentro de dispatcher.lua (não existe
+    -- Dispatcher.settingsList). A forma correta de interagir de fora é pelos
+    -- métodos públicos do módulo (confirmados lendo frontend/dispatcher.lua):
+    --   Dispatcher:getNameFromItem(id, settings, dont_show_value) -> título de 1 ação
+    --   Dispatcher:menuTextFunc(settings)                         -> resumo de várias
+    --     ações numa entrada (usado em plugins/profiles.koplugin/main.lua:355)
+    --   Dispatcher:addSubMenu(caller, menu, location, settings)    -> monta
+    --     sozinho o menu nativo de seleção de ações (Fase 5)
+    --   Dispatcher:execute(settings, exec_props)                  -> executa
+    --     todas as ações presentes na entrada (Fase 4, usado abaixo na Fase 3)
+    -- ============================================================
+
+    -- Título legível de uma única ação. Nunca falha: se o id não existir
+    -- (ex: veio de um plugin desinstalado), o próprio Dispatcher devolve
+    -- "Unknown item" em vez de erro/nil.
+    local function getActionTitle(action_id)
+        return Dispatcher:getNameFromItem(action_id, nil, true)
     end
 
     -- Detecção de plugins otimizada baseada no sistema de arquivos do KOReader
@@ -711,6 +801,112 @@ function QuickSettingsPlugin:init()
     }
 
     -- ============================================================
+    -- Fase 3: Integração dos botões customizados no grid existente
+    -- Cada entrada de custom_buttons_settings.data vira uma entrada normal em
+    -- button_defs/button_display_names — reaproveita 100% do sistema de
+    -- renderização, ordenação (button_order) e visibilidade (show_buttons)
+    -- que já existe pros botões fixos. Nenhuma mudança no createQuickSettingsPanel.
+    -- ============================================================
+
+    -- Ícone usado enquanto o botão não tem um escolhido, ou quando a entrada
+    -- veio incompleta/corrompida.
+    local CUSTOM_BUTTON_FALLBACK_ICON = "quick_puzzle"
+
+    -- Garante que uma entrada tem os campos básicos (name/icon/action),
+    -- autocorrigindo se necessário (ex: dado antigo do esquema anterior).
+    local function ensureCustomButtonEntry(entry, id)
+        if type(entry.action) ~= "table" then entry.action = {} end
+        if entry.name == nil then entry.name = id end
+        return entry
+    end
+
+    -- Constrói a entrada de button_defs de um botão customizado. Recebe o
+    -- ID (não a tabela em si!) e relê custom_buttons_settings.data[id] toda vez que
+    -- for preciso — callback e label_func nunca guardam uma referência velha.
+    --
+    -- O callback fecha o menu antes de executar e adia a execução pro
+    -- próximo tick — mesmo padrão usado por zen_ui.koplugin em
+    -- modules/menu/patches/quick_settings.lua:807-813 e
+    -- modules/menu/patches/app_launcher.lua:308-314. Necessário porque
+    -- Dispatcher:execute usa UIManager:sendEvent (dispatcher.lua:1309), que só
+    -- alcança o DeviceListener (onde mora onToggleNightMode e outros
+    -- handlers "none") se ele não estiver atrás de outro widget na pilha —
+    -- confirmado em frontend/apps/reader/readerui.lua:429 e
+    -- frontend/apps/filemanager/filemanager.lua:415, onde o DeviceListener é
+    -- registrado sem always_active=true.
+    local function buildCustomButtonDef(id)
+        local entry = custom_buttons_settings.data[id]
+        local icon = (entry and entry.icon) or CUSTOM_BUTTON_FALLBACK_ICON
+        return {
+            label_func = function()
+                local e = custom_buttons_settings.data[id]
+                if not e then return id end
+                ensureCustomButtonEntry(e, id)
+                return e.name or id
+            end,
+            -- Estático porque o grid só suporta label_func, não icon_func
+            -- (confirmado: só def.icon é lido no render do botão). Por isso
+            -- installCustomButtonDef precisa ser chamado de novo sempre que
+            -- o ícone mudar, pra essa entrada de button_defs ser reconstruída
+            -- com o ícone atual.
+            icon = icon,
+            callback = function(touch_menu)
+                if touch_menu then touch_menu:closeMenu() end
+                UIManager:nextTick(function()
+                    local entry = custom_buttons_settings.data[id]
+                    if not entry then return end
+                    ensureCustomButtonEntry(entry, id)
+                    Dispatcher:execute(entry.action, { qm_show = false })
+                end)
+            end,
+        }
+    end
+
+    -- (Re)instala um botão customizado nas tabelas ao vivo (button_defs,
+    -- button_display_names) e garante que ele apareça no grid por padrão.
+    -- Chamada tanto na inicialização (pros botões já salvos) quanto ao
+    -- criar/editar um botão em tempo real.
+    local function installCustomButtonDef(id)
+        local entry = custom_buttons_settings.data[id]
+        if not entry then return end
+        ensureCustomButtonEntry(entry, id)
+        button_defs[id] = buildCustomButtonDef(id)
+        button_display_names[id] = entry.name or id
+
+        local found = false
+        for _, existing_id in ipairs(config.button_order) do
+            if existing_id == id then found = true; break end
+        end
+        if not found then table.insert(config.button_order, id) end
+        if config.show_buttons[id] == nil then config.show_buttons[id] = true end
+    end
+
+    -- Remove um botão customizado das tabelas ao vivo. Não mexe em
+    -- button_order/show_buttons: eles simplesmente deixam de ter efeito
+    -- porque button_defs[id] não existe mais (mesma checagem de sempre,
+    -- linha "if config.show_buttons[id] and button_defs[id] then").
+    local function uninstallCustomButtonDef(id)
+        button_defs[id] = nil
+        button_display_names[id] = nil
+    end
+
+    -- Instala todos os botões customizados já salvos (carregados do disco
+    -- em sessões anteriores) assim que button_defs/button_display_names existem.
+    for id, _ in pairs(custom_buttons_settings.data) do
+        installCustomButtonDef(id)
+    end
+
+    -- Limpeza única: remove o botão de teste "Teste F3" criado durante a
+    -- validação da Fase 3 (é seguro rodar sempre; não faz nada se não existir).
+    for id, entry in pairs(custom_buttons_settings.data) do
+        if entry.name == _("Teste F3")
+            or (entry.settings and (entry.settings.label == _("Teste F3") or entry.settings.name == _("Teste F3"))) then
+            uninstallCustomButtonDef(id)
+            removeCustomButton(id)
+        end
+    end
+
+    -- ============================================================
     -- Construtores de Sliders (Brilho e Temperatura)
     -- ============================================================
     local function build_brightness_slider(touch_menu, opts)
@@ -1100,14 +1296,546 @@ function QuickSettingsPlugin:init()
 
     local quick_settings_tab = { icon = "quicksettings", remember = false, panel = createQuickSettingsPanel }
 
+    -- ============================================================
+    -- Fase 5 (portada de zen_ui.koplugin): seletor de ações com salvamento
+    -- e atualização IMEDIATOS, em vez de esperar o evento "FlushSettings"
+    -- (que só dispara em certos momentos do ciclo de vida do app — foi
+    -- por causa disso que uma ação escolhida no seletor podia não bater
+    -- com o que estava salvo em disco, e o menu não se atualizava sem
+    -- reiniciar). Portado de
+    -- modules/settings/sections/app_launcher_settings.lua:51-91 do zen_ui.
+    --
+    -- Embrulha cada item que o Dispatcher:addSubMenu gera: depois do
+    -- callback original rodar, se ele marcou caller.updated = true
+    -- (dispatcher.lua:865,1051,1087), roda on_update na hora — sem
+    -- esperar nada. Recursivo porque itens de categoria "string"/
+    -- "configurable" abrem um sub_item_table_func próprio (dispatcher.lua,
+    -- categoria configurable em _addItem).
+    -- ============================================================
+    local function wrapDispatchCallbacks(items, caller, on_update)
+        if type(items) ~= "table" then return end
+        for _, item in ipairs(items) do
+            if type(item.callback) == "function" and not item._qs_dispatch_wrapped then
+                local orig_callback = item.callback
+                item.callback = function(touch_menu, ...)
+                    caller.updated = false
+                    local result = orig_callback(touch_menu, ...)
+                    if caller.updated then
+                        caller.updated = false
+                        on_update(touch_menu)
+                    end
+                    return result
+                end
+                item._qs_dispatch_wrapped = true
+            end
+            if type(item.hold_callback) == "function" and not item._qs_dispatch_hold_wrapped then
+                local orig_hold_callback = item.hold_callback
+                item.hold_callback = function(touch_menu, ...)
+                    caller.updated = false
+                    local result = orig_hold_callback(touch_menu, ...)
+                    if caller.updated then
+                        caller.updated = false
+                        on_update(touch_menu)
+                    end
+                    return result
+                end
+                item._qs_dispatch_hold_wrapped = true
+            end
+            if type(item.sub_item_table_func) == "function" and not item._qs_dispatch_func_wrapped then
+                local orig_sub_item_table_func = item.sub_item_table_func
+                item.sub_item_table_func = function(...)
+                    local sub_items = orig_sub_item_table_func(...)
+                    wrapDispatchCallbacks(sub_items, caller, on_update)
+                    return sub_items
+                end
+                item._qs_dispatch_func_wrapped = true
+            end
+            wrapDispatchCallbacks(item.sub_item_table, caller, on_update)
+        end
+    end
+
+    -- ============================================================
+    -- Seletor de ícone (portado de zen_ui.koplugin/common/ui/zen_icon_picker.lua)
+    -- Grade de ícones em tela cheia, paginada por toque/swipe. Só portei o
+    -- estilo "page_number" do rodapé de paginação deles (common/ui/zen_pager.lua)
+    -- porque é o único estilo que o icon picker deles realmente usa
+    -- (chama pager.paint com force_style="page_number" fixo) — os estilos
+    -- "dots"/"bar" e o módulo de fonte customizado (library_font) do resto
+    -- do tema deles não se aplicam aqui.
+    -- ============================================================
+    local Pager = {}
+    do
+        local Screen = require("device").screen
+        Pager.CHEV_W = Screen:scaleBySize(60)
+        Pager.PN_ICON_SZ = Screen:scaleBySize(36)
+        Pager.PN_FOOTER_H = math.max(Pager.PN_ICON_SZ + Screen:scaleBySize(6), Screen:scaleBySize(20))
+        function Pager.getHoldSkip() return "10" end
+        function Pager.paint(bb, x, y, w, h, cur_page, total_pages)
+            if total_pages <= 1 then return end
+            local Blitbuffer = require("ffi/blitbuffer")
+            local Font = require("ui/font")
+            local RenderText = require("ui/rendertext")
+            local IconWidget = require("ui/widget/iconwidget")
+            local pn_face = Font:getFace("smallinfofont", Font.sizemap and Font.sizemap["xx_smallinfofont"] or 18)
+            local text_str = tostring(cur_page)
+            local text_w = RenderText:sizeUtf8Text(0, 9999, pn_face, text_str, true, false).x
+            local face_h = pn_face.bb_size or pn_face.size or Screen:scaleBySize(10)
+            local base_y = y + math.floor(h / 2 + face_h * 0.25)
+            local inner_w = w - Pager.CHEV_W * 2
+            local text_x = x + Pager.CHEV_W + math.floor((inner_w - text_w) / 2)
+            RenderText:renderUtf8Text(bb, text_x, base_y, pn_face, text_str, false, false, Blitbuffer.COLOR_BLACK)
+            local icon_y = y + math.floor((h - Pager.PN_ICON_SZ) / 2)
+            local il = IconWidget:new{ icon = "chevron.left", width = Pager.PN_ICON_SZ, height = Pager.PN_ICON_SZ, alpha = true }
+            local ir = IconWidget:new{ icon = "chevron.right", width = Pager.PN_ICON_SZ, height = Pager.PN_ICON_SZ, alpha = true }
+            il:paintTo(bb, x + math.floor((Pager.CHEV_W - Pager.PN_ICON_SZ) / 2), icon_y)
+            ir:paintTo(bb, x + w - Pager.CHEV_W + math.floor((Pager.CHEV_W - Pager.PN_ICON_SZ) / 2), icon_y)
+        end
+    end
+
+    -- Varre as pastas de ícones disponíveis, igual
+    -- common/utils.lua:getIconPickerList do zen_ui: ícones do próprio plugin,
+    -- ícones customizados do usuário, e o conjunto padrão do KOReader
+    -- (resources/icons/mdlight) — assim funciona mesmo sem nenhum ícone
+    -- próprio no seu plugin.
+    local function getCustomButtonIconList()
+        local ok_lfs, lfs = pcall(require, "libs/libkoreader-lfs")
+        if not ok_lfs or not lfs then return {} end
+        local seen, all = {}, {}
+        local function addDir(dir)
+            if not dir then return end
+            dir = dir:match("^(.*[^/])/*$") or dir
+            if lfs.attributes(dir, "mode") ~= "directory" then return end
+            local entries = {}
+            for f in lfs.dir(dir) do
+                if f:match("%.svg$") and not f:match("%.bak%.svg$") then
+                    local name = f:sub(1, -5)
+                    if not seen[name] then entries[#entries + 1] = { name = name, file = dir .. "/" .. f } end
+                end
+            end
+            table.sort(entries, function(a, b) return a.name < b.name end)
+            for _, item in ipairs(entries) do
+                seen[item.name] = true
+                all[#all + 1] = item
+            end
+        end
+        addDir(self.path .. "/icons")
+        local DataStorage = require("datastorage")
+        addDir(DataStorage:getDataDir() .. "/icons")
+        addDir(lfs.currentdir() .. "/resources/icons/mdlight")
+        return all
+    end
+
+    -- Grade de ícones em tela cheia. icons_list: { {name=, file=}, ... }.
+    -- on_select(name) roda quando o usuário toca um ícone.
+    local function showCustomButtonIconPicker(current_icon, on_select)
+        local icons_list = getCustomButtonIconList()
+        if #icons_list == 0 then
+            local InfoMessage = require("ui/widget/infomessage")
+            UIManager:show(InfoMessage:new{ text = _("Nenhum ícone encontrado.") })
+            return
+        end
+        local function displayName(item) return (item.name:gsub("^quick_", ""):gsub("^tab_", ""):gsub("^lookup_", "")) end
+        table.sort(icons_list, function(a, b) return displayName(a):lower() < displayName(b):lower() end)
+
+        local Screen = require("device").screen
+        local Geom = require("ui/geometry")
+        local Blitbuffer = require("ffi/blitbuffer")
+        local Font = require("ui/font")
+        local Size = require("ui/size")
+        local IC = require("ui/widget/container/inputcontainer")
+        local CC = require("ui/widget/container/centercontainer")
+        local FC = require("ui/widget/container/framecontainer")
+        local VG = require("ui/widget/verticalgroup")
+        local HG = require("ui/widget/horizontalgroup")
+        local IW = require("ui/widget/iconwidget")
+        local TW = require("ui/widget/textwidget")
+
+        local sw, sh = Screen:getWidth(), Screen:getHeight()
+        local icon_sz = Screen:scaleBySize(42)
+        local label_size = math.max(Screen:scaleBySize(8), (Font.sizemap and Font.sizemap["xx_smallinfofont"] or Screen:scaleBySize(18)) - Screen:scaleBySize(2))
+        local label_face = Font:getFace("smallinfofont", label_size)
+        local label_probe = TW:new{ text = "Wg", face = label_face, padding = 0 }
+        local label_h = label_probe:getSize().h
+        label_probe:free()
+        local cell_pad = Screen:scaleBySize(4)
+        local max_cell_brd = Screen:scaleBySize(2)
+        local pad = Size.padding.default
+        local span = Size.span.vertical_default
+        local bar_area_h = Pager.PN_FOOTER_H
+
+        local back_sz = Screen:scaleBySize(24)
+        local back_gap = Screen:scaleBySize(6)
+        local back_iw = IW:new{ icon = "chevron.left", width = back_sz, height = back_sz }
+
+        local content_w = sw - 2 * pad
+        local cols = math.max(4, math.floor(content_w / Screen:scaleBySize(78)))
+        local cell_w = math.floor(content_w / cols)
+        local cell_h = icon_sz + label_h + cell_pad * 2 + max_cell_brd * 2
+        local label_max_w = cell_w - cell_pad * 2 - max_cell_brd * 2
+
+        local title_text_w = content_w - back_sz - back_gap
+        local title_tw = TW:new{ text = _("Select icon"), face = Font:getFace("smallinfofont"), bold = true, width = title_text_w }
+        local title_text_h = title_tw:getSize().h
+        local title_h = math.max(back_sz, title_text_h)
+
+        local overhead = 2 * pad + title_h + span + span + bar_area_h
+        local max_grid_h = math.max(cell_h, sh - overhead)
+        local rows_per_page = math.max(1, math.floor(max_grid_h / cell_h))
+        local grid_h = rows_per_page * cell_h
+        local per_page = cols * rows_per_page
+        local total_pages = math.max(1, math.ceil(math.max(#icons_list, 1) / per_page))
+
+        local cur_page = 1
+        local page_vgs = {}
+        for p = 1, total_pages do
+            local pv = VG:new{ align = "left" }
+            local start_i = (p - 1) * per_page + 1
+            local row_g
+            for offset = 0, per_page - 1 do
+                local i = start_i + offset
+                if i > #icons_list then break end
+                if offset % cols == 0 then
+                    row_g = HG:new{ align = "top" }
+                    table.insert(pv, row_g)
+                end
+                local item = icons_list[i]
+                local name = item.name
+                local is_sel = (current_icon == name)
+                local short = displayName(item)
+                local cell_brd = is_sel and Screen:scaleBySize(2) or Screen:scaleBySize(1)
+                table.insert(row_g, FC:new{
+                    width = cell_w, height = cell_h, bordersize = cell_brd,
+                    color = is_sel and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_LIGHT_GRAY,
+                    background = is_sel and Blitbuffer.COLOR_LIGHT_GRAY or Blitbuffer.COLOR_WHITE,
+                    padding = cell_pad,
+                    CC:new{
+                        dimen = Geom:new{ w = cell_w - cell_pad*2 - 2*cell_brd, h = cell_h - cell_pad*2 - 2*cell_brd },
+                        VG:new{
+                            align = "center",
+                            IW:new{ file = item.file or nil, icon = item.file and nil or name, width = icon_sz, height = icon_sz, alpha = true },
+                            TW:new{ text = short, face = label_face, max_width = label_max_w, padding = 0 },
+                        },
+                    },
+                })
+            end
+            page_vgs[p] = pv
+        end
+
+        local content_x, content_y = pad, pad
+        local grid_x = content_x
+        local grid_y = content_y + title_h + span
+        local bar_y = grid_y + grid_h + span
+
+        local dialog, closed = nil, false
+        local function closeDialog()
+            if closed then return end
+            closed = true
+            UIManager:close(dialog, "ui")
+            UIManager:forceRePaint()
+        end
+        local function goToPage(p)
+            if p < 1 or p > total_pages then return end
+            cur_page = p
+            UIManager:setDirty(dialog, function() return "ui", dialog.dimen end)
+        end
+
+        local PickerDlg = IC:extend{}
+        function PickerDlg:init()
+            self:_init()
+            self.dimen = Geom:new{ x = 0, y = 0, w = sw, h = sh }
+            self:registerTouchZones({
+                {
+                    id = "picker_tap", ges = "tap",
+                    screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 },
+                    handler = function(ges)
+                        local gx, gy = ges.pos.x, ges.pos.y
+                        if gx >= content_x and gx < content_x + back_sz and gy >= content_y and gy < content_y + title_h then
+                            closeDialog(); return true
+                        end
+                        if total_pages > 1 and gy >= bar_y and gy < bar_y + bar_area_h and gx >= content_x and gx < content_x + content_w then
+                            if gx < content_x + Pager.CHEV_W then
+                                goToPage(cur_page > 1 and cur_page - 1 or total_pages)
+                            elseif gx >= content_x + content_w - Pager.CHEV_W then
+                                goToPage(cur_page < total_pages and cur_page + 1 or 1)
+                            end
+                            return true
+                        end
+                        local grid_geom = Geom:new{ x = grid_x, y = grid_y, w = cols * cell_w, h = rows_per_page * cell_h }
+                        if ges.pos:intersectWith(grid_geom) then
+                            local col_i = math.floor((gx - grid_x) / cell_w)
+                            local row_i = math.floor((gy - grid_y) / cell_h)
+                            local idx = (cur_page - 1) * per_page + row_i * cols + col_i + 1
+                            if idx >= 1 and idx <= #icons_list then
+                                local selected_name = icons_list[idx].name
+                                closeDialog()
+                                UIManager:nextTick(function() on_select(selected_name) end)
+                            end
+                        end
+                        return true
+                    end,
+                },
+                {
+                    id = "picker_swipe", ges = "swipe",
+                    screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 },
+                    handler = function(ges)
+                        local dir = ges.direction
+                        if dir == "west" then goToPage(cur_page + 1)
+                        elseif dir == "east" then goToPage(cur_page - 1)
+                        else closeDialog() end
+                        return true
+                    end,
+                },
+            })
+        end
+        function PickerDlg:paintTo(bb, x, y)
+            self.dimen.x = x; self.dimen.y = y
+            bb:paintRect(0, 0, sw, sh, Blitbuffer.COLOR_WHITE)
+            back_iw:paintTo(bb, content_x, content_y + math.floor((title_h - back_sz) / 2))
+            title_tw:paintTo(bb, content_x + back_sz + back_gap, content_y + math.floor((title_h - title_text_h) / 2))
+            page_vgs[cur_page]:paintTo(bb, grid_x, grid_y)
+            Pager.paint(bb, content_x, bar_y, content_w, bar_area_h, cur_page, total_pages)
+        end
+
+        dialog = PickerDlg:new{}
+        UIManager:show(dialog, "full")
+    end
+
+    local function trim(text) return (text or ""):gsub("^%s+", ""):gsub("%s+$", "") end
+
+    -- Acha o id de uma entrada de custom_buttons_settings.data pela
+    -- referência da tabela, não pelo `id` capturado no momento em que a tela
+    -- foi montada. Necessário porque buildCustomButtonEntryItems recebe
+    -- id=nil pra botões ainda em rascunho — o id real só passa a existir
+    -- depois do _qs_draft_commit, mas os callbacks de Ícone/Nome/Apagar já
+    -- fecharam sobre esse `nil` antes disso acontecer. É exatamente por
+    -- causa disso que o ícone escolhido na criação não pegava até reiniciar.
+    local function findCustomButtonId(entry)
+        for k, v in pairs(custom_buttons_settings.data) do
+            if v == entry then return k end
+        end
+        return nil
+    end
+
+    -- Zera o cache de tab_item_table do FileManagerMenu/ReaderMenu. Ao
+    -- contrário de "Custom buttons" (que é mutado ao vivo), "Buttons"
+    -- (mostrar/ocultar) e "Arrange buttons" só são reconstruídos dentro de
+    -- buildSettingsMenu() — sem isso, um botão novo/renomeado/apagado só
+    -- aparecia certo ali depois de reiniciar o KOReader. Confirmado em
+    -- frontend/apps/filemanager/filemanagermenu.lua:1017-1019 e
+    -- frontend/apps/reader/modules/readermenu.lua:416: onShowMenu só chama
+    -- setUpdateItemTable() (onde buildSettingsMenu roda) quando
+    -- tab_item_table ainda é nil.
+    local function invalidateMenuCache()
+        if self.ui and self.ui.menu then
+            end
+    end
+
+    -- Pergunta o nome do botão (InputDialog), igual prompt_label do zen_ui.
+    local function promptCustomButtonName(entry, touch_menu)
+        local InputDialog = require("ui/widget/inputdialog")
+        local dialog
+        dialog = InputDialog:new{
+            title = _("Nome do botão"),
+            input = entry.name or "",
+            buttons = {{
+                { text = _("Cancelar"), callback = function() UIManager:close(dialog) end },
+                {
+                    text = _("Definir"), is_enter_default = true,
+                    callback = function()
+                        local name = trim(dialog:getInputText())
+                        if name ~= "" then entry.name = name end
+                        UIManager:close(dialog)
+                        if not entry._qs_draft_commit then
+                            saveCustomButtons()
+                            -- Refresca button_display_names[id] (usado em "Buttons"
+                            -- e "Arrange buttons") e o cache do menu principal.
+                            local real_id = findCustomButtonId(entry)
+                            if real_id then installCustomButtonDef(real_id) end
+                            invalidateMenuCache()
+                        end
+                        if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
+                    end,
+                },
+            }},
+        }
+        UIManager:show(dialog)
+        dialog:onShowKeyboard()
+    end
+
+    -- Monta as linhas da tela de edição de UM botão customizado: Concluir,
+    -- Ação, Ícone, Nome, Apagar — igual build_entry_items do zen_ui
+    -- (app_launcher_settings.lua:500-588), mas só a parte de tipo "action"
+    -- (não precisamos de pastas/plugins).
+    -- `entry._qs_draft_commit`, se existir, é chamado assim que a 1ª ação for
+    -- marcada (fluxo de criação); senão é um botão já existente normal.
+    -- `parent_items` é a lista "Custom buttons" que está por baixo dessa tela
+    -- (a mesma tabela que o TouchMenu vai restaurar ao voltar) — mutar ela
+    -- diretamente aqui é o que faz a lista aparecer atualizada sem precisar
+    -- reiniciar (confirmado lendo touchmenu.lua:778-780,858-861: back/entrar
+    -- num submenu só restaura/empilha a referência antiga, nunca reconstrói).
+    local function buildCustomButtonEntryItems(id, entry, parent_items)
+        local items = {}
+
+        local action_items = {}
+        local caller = {}
+        Dispatcher:addSubMenu(caller, action_items, entry, "action")
+        wrapDispatchCallbacks(action_items, caller, function(touch_menu)
+            if entry._qs_draft_commit then
+                entry._qs_draft_commit()
+            else
+                saveCustomButtons()
+            end
+            -- Volta pra tela de edição do botão (Ação/Ícone/Nome/Apagar) em vez
+            -- de só atualizar a lista de ações no lugar. touch_menu:updateItems(1)
+            -- na verdade força a PÁGINA 1 do menu atual
+            -- (TouchMenu:updateItems(target_page, target_item_id), touchmenu.lua:652)
+            -- — por isso, ao marcar uma ação numa página 2+ do seletor, a tela
+            -- pulava de volta pra primeira página em vez de voltar um nível.
+            if touch_menu and touch_menu.backToUpperMenu then touch_menu:backToUpperMenu() end
+        end)
+        table.insert(items, {
+            text_func = function()
+                if entry.action and next(entry.action) then
+                    return T(_("Ação: %1"), Dispatcher:menuTextFunc(entry.action))
+                end
+                return _("Ação: (nenhuma)")
+            end,
+            keep_menu_open = true,
+            sub_item_table = action_items,
+        })
+
+        table.insert(items, {
+            text_func = function() return T(_("Ícone: %1"), entry.icon or _("nenhum")) end,
+            keep_menu_open = true,
+            callback = function(touch_menu)
+                showCustomButtonIconPicker(entry.icon, function(name)
+                    entry.icon = name
+                    if not entry._qs_draft_commit then
+                        saveCustomButtons()
+                        -- Usa o id ATUAL (não o "id" capturado quando essa tela foi
+                        -- aberta): pra um botão recém-criado, buildCustomButtonEntryItems
+                        -- foi chamado com id=nil (ainda era rascunho), e esse valor
+                        -- nunca muda depois — era por isso que o ícone escolhido não
+                        -- pegava no botão de verdade até reiniciar.
+                        local real_id = findCustomButtonId(entry) or id
+                        installCustomButtonDef(real_id) -- reconstroi button_defs[id] com o icone novo (nao ha icon_func no grid)
+                        invalidateMenuCache()
+                    end
+                    if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
+                end)
+            end,
+        })
+
+        table.insert(items, {
+            text_func = function() return T(_("Nome: %1"), entry.name or id) end,
+            keep_menu_open = true,
+            callback = function(touch_menu) promptCustomButtonName(entry, touch_menu) end,
+        })
+
+        table.insert(items, {
+            text = _("Apagar"),
+            separator = true,
+            callback = function(touch_menu)
+                if entry._qs_draft_commit then
+                    if touch_menu then touch_menu:backToUpperMenu() end
+                    return
+                end
+                local ConfirmBox = require("ui/widget/confirmbox")
+                UIManager:show(ConfirmBox:new{
+                    text = _("Apagar este botão?"),
+                    ok_text = _("Apagar"),
+                    ok_callback = function()
+                        local real_id = findCustomButtonId(entry) or id
+                        uninstallCustomButtonDef(real_id)
+                        removeCustomButton(real_id)
+                        invalidateMenuCache()
+                        if parent_items then
+                            for i, it in ipairs(parent_items) do
+                                if it.qs_button_id == real_id then table.remove(parent_items, i); break end
+                            end
+                        end
+                        if touch_menu then touch_menu:backToUpperMenu() end
+                    end,
+                })
+            end,
+        })
+
+        -- Botão "Concluir": só volta pra tela anterior. Não precisa fazer
+        -- mais nada além disso — cada campo (Ação/Ícone/Nome) já salva e
+        -- atualiza a lista sozinho assim que é alterado.
+        table.insert(items, 1, {
+            text = _("Concluir"),
+            separator = true,
+            callback = function(touch_menu)
+                if touch_menu then touch_menu:backToUpperMenu() end
+            end,
+        })
+
+        return items
+    end
+
+    -- Monta o item de menu de um botão customizado já existente.
+    -- `parent_items` é passado adiante pra tela de edição poder se remover
+    -- da lista sozinha quando apagada (ver buildCustomButtonEntryItems acima).
+    local function buildCustomButtonMenuItem(id, parent_items)
+        local entry = custom_buttons_settings.data[id]
+        if not entry then return { text = id } end
+        ensureCustomButtonEntry(entry, id)
+        return {
+            qs_button_id = id,
+            text_func = function()
+                return (entry.name or id) .. ": " .. Dispatcher:menuTextFunc(entry.action)
+            end,
+            sub_item_table_func = function() return buildCustomButtonEntryItems(id, entry, parent_items) end,
+        }
+    end
+
+    -- ============================================================
+    -- Criação de um botão novo: entrada RASCUNHO (fora de
+    -- custom_buttons_settings.data até ser "commitada"), igual
+    -- new_action_entry + open_new_action_picker do zen_ui
+    -- (app_launcher_settings.lua:239-248, 355-369). Só vira um botão de
+    -- verdade (ganha id, é salvo, aparece no grid) quando o usuário marca a
+    -- primeira ação no seletor — se desistir sem escolher nada, não sobra
+    -- botão vazio salvo. Ao commitar, insere direto na lista "Custom
+    -- buttons" que está por baixo (touch_menu.item_table no momento do
+    -- toque em "Adicionar" é exatamente essa lista), pelo mesmo motivo do
+    -- parent_items acima.
+    -- ============================================================
+    local function openNewCustomButtonPicker(touch_menu)
+        if not (touch_menu and type(touch_menu.updateItems) == "function") then return end
+        local parent_items = touch_menu.item_table
+        local draft = { name = _("Botão personalizado"), action = {} }
+        local committed = false
+        draft._qs_draft_commit = function()
+            if committed or not (draft.action and next(draft.action)) then return end
+            committed = true
+            local id = "custom_" .. (config.next_custom_id + 1)
+            config.next_custom_id = config.next_custom_id + 1
+            saveConfig()
+            draft._qs_draft_commit = nil
+            custom_buttons_settings.data[id] = draft
+            saveCustomButtons()
+            installCustomButtonDef(id)
+            invalidateMenuCache()
+            if parent_items then table.insert(parent_items, buildCustomButtonMenuItem(id, parent_items)) end
+        end
+        table.insert(touch_menu.item_table_stack, touch_menu.item_table)
+        touch_menu.parent_id = nil
+        touch_menu.item_table = buildCustomButtonEntryItems(nil, draft, parent_items)
+        touch_menu:updateItems(1)
+    end
+
     local function buildSettingsMenu()
         local button_toggle_items = {}
-        for _, id in ipairs(config_default.button_order) do
-            table.insert(button_toggle_items, {
-                text = button_display_names[id],
-                checked_func = function() return config.show_buttons[id] end,
-                callback = function() config.show_buttons[id] = not config.show_buttons[id]; saveConfig() end,
-            })
+        for _, id in ipairs(config.button_order) do
+            if button_defs[id] then
+                table.insert(button_toggle_items, {
+                    text = button_display_names[id] or id,
+                    checked_func = function() return config.show_buttons[id] end,
+                    callback = function() config.show_buttons[id] = not config.show_buttons[id]; saveConfig() end,
+                })
+            end
         end
         table.insert(button_toggle_items, 1, {
             text = _("Arrange buttons"), keep_menu_open = true, separator = true,
@@ -1120,10 +1848,19 @@ function QuickSettingsPlugin:init()
                 UIManager:show(SortWidget:new{ title = _("Arrange quick settings buttons"), item_table = sort_items, callback = function() for i, item in ipairs(sort_items) do config.button_order[i] = item.orig_item end; saveConfig() end })
             end,
         })
+
+        local custom_buttons_items = {
+            { text = _("Adicionar botão customizado"), keep_menu_open = true, separator = true, callback = openNewCustomButtonPicker },
+        }
+        for id, _ in pairs(custom_buttons_settings.data) do
+            table.insert(custom_buttons_items, buildCustomButtonMenuItem(id, custom_buttons_items))
+        end
+
         return {
             text = _("Quick settings"),
             sub_item_table = {
                 { text = _("Buttons"), sub_item_table = button_toggle_items },
+                { text = _("Custom buttons"), sub_item_table = custom_buttons_items },
                 { text = _("Show brightness slider"), checked_func = function() return config.show_frontlight end, callback = function() config.show_frontlight = not config.show_frontlight; saveConfig() end },
                 { text = _("Show warmth slider"), checked_func = function() return config.show_warmth end, callback = function() config.show_warmth = not config.show_warmth; saveConfig() end, separator = true },
                 { text = _("Show available networks when turning on Wi-Fi"), checked_func = function() return config.show_available_networks end, callback = function() config.show_available_networks = not config.show_available_networks; saveConfig() end },
