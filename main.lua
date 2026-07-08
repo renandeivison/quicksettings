@@ -25,6 +25,7 @@ local Screen = Device.screen
 local Dispatcher = require("dispatcher")
 local LuaSettings = require("luasettings")
 local T = require("ffi/util").template
+local PLUGIN_VERSION = "1.2.0"
 
 local QuickSettingsPlugin = WidgetContainer:extend{
     name = "quicksettings",
