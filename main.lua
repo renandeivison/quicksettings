@@ -1627,9 +1627,18 @@ function QuickSettingsPlugin:init()
     -- setUpdateItemTable() (onde buildSettingsMenu roda) quando
     -- tab_item_table ainda é nil.
     local function invalidateMenuCache()
-        if self.ui and self.ui.menu then
-            end
+    local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
+    local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
+    local fm_instance = ok_f and FileManager.instance
+    local reader_instance = ok_r and ReaderUI.instance
+    
+    if fm_instance and fm_instance.menu then
+        fm_instance.menu.tab_item_table = nil
     end
+    if reader_instance and reader_instance.menu then
+        reader_instance.menu.tab_item_table = nil
+    end
+end
 
     -- Pergunta o nome do botão (InputDialog), igual prompt_label do zen_ui.
     local function promptCustomButtonName(entry, touch_menu)
