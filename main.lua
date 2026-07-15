@@ -1627,18 +1627,9 @@ function QuickSettingsPlugin:init()
     -- setUpdateItemTable() (onde buildSettingsMenu roda) quando
     -- tab_item_table ainda é nil.
     local function invalidateMenuCache()
-    local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
-    local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
-    local fm_instance = ok_f and FileManager.instance
-    local reader_instance = ok_r and ReaderUI.instance
-    
-    if fm_instance and fm_instance.menu then
-        fm_instance.menu.tab_item_table = nil
+        if self.ui and self.ui.menu then
+            end
     end
-    if reader_instance and reader_instance.menu then
-        reader_instance.menu.tab_item_table = nil
-    end
-end
 
     -- Pergunta o nome do botão (InputDialog), igual prompt_label do zen_ui.
     local function promptCustomButtonName(entry, touch_menu)
@@ -1661,7 +1652,6 @@ end
                             -- e "Arrange buttons") e o cache do menu principal.
                             local real_id = findCustomButtonId(entry)
                             if real_id then installCustomButtonDef(real_id) end
-                            saveConfig()
                             invalidateMenuCache()
                         end
                         if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
@@ -1730,7 +1720,6 @@ end
                         -- pegava no botão de verdade até reiniciar.
                         local real_id = findCustomButtonId(entry) or id
                         installCustomButtonDef(real_id) -- reconstroi button_defs[id] com o icone novo (nao ha icon_func no grid)
-                        saveConfig()
                         invalidateMenuCache()
                     end
                     if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
@@ -1829,7 +1818,6 @@ end
             custom_buttons_settings.data[id] = draft
             saveCustomButtons()
             installCustomButtonDef(id)
-            saveConfig()
             invalidateMenuCache()
             if parent_items then table.insert(parent_items, buildCustomButtonMenuItem(id, parent_items)) end
         end
