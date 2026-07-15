@@ -1661,6 +1661,7 @@ end
                             -- e "Arrange buttons") e o cache do menu principal.
                             local real_id = findCustomButtonId(entry)
                             if real_id then installCustomButtonDef(real_id) end
+                            saveConfig()
                             invalidateMenuCache()
                         end
                         if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
@@ -1729,6 +1730,7 @@ end
                         -- pegava no botão de verdade até reiniciar.
                         local real_id = findCustomButtonId(entry) or id
                         installCustomButtonDef(real_id) -- reconstroi button_defs[id] com o icone novo (nao ha icon_func no grid)
+                        saveConfig()
                         invalidateMenuCache()
                     end
                     if touch_menu and touch_menu.updateItems then touch_menu:updateItems(1) end
@@ -1827,6 +1829,7 @@ end
             custom_buttons_settings.data[id] = draft
             saveCustomButtons()
             installCustomButtonDef(id)
+            saveConfig()
             invalidateMenuCache()
             if parent_items then table.insert(parent_items, buildCustomButtonMenuItem(id, parent_items)) end
         end
