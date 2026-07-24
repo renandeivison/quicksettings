@@ -319,41 +319,6 @@ function QuickSettingsPlugin:init()
         custom_buttons_settings:flush()
     end
 
-    -- Retorna a tabela de botões customizados (dict: id -> entrada)
-    local function getCustomButtons()
-        return custom_buttons_settings.data
-    end
-
-    local function getCustomButtonById(id)
-        return custom_buttons_settings.data[id]
-    end
-
-    -- Cria um botão customizado vazio (sem ações ainda — elas são atribuídas
-    -- depois via Dispatcher:addSubMenu). `data` deve conter name e icon.
-    -- Retorna o id gerado e a entrada criada. O contador next_custom_id
-    -- continua no config grande (é só um número, sem risco de corrupção).
-    local function addCustomButton(data)
-        config.next_custom_id = (config.next_custom_id or 0) + 1
-        local id = "custom_" .. config.next_custom_id
-        saveConfig()
-        custom_buttons_settings.data[id] = {
-            name = data.name, icon = data.icon, action = {},
-        }
-        saveCustomButtons()
-        return id, custom_buttons_settings.data[id]
-    end
-
-    -- Atualiza nome/ícone (metadados) de um botão existente. As ações em si
-    -- são editadas via Dispatcher:addSubMenu, não por aqui.
-    local function updateCustomButton(id, data)
-        local entry = custom_buttons_settings.data[id]
-        if not entry then return false end
-        if data.name ~= nil then entry.name = data.name end
-        if data.icon ~= nil then entry.icon = data.icon end
-        saveCustomButtons()
-        return true
-    end
-
     local function removeCustomButton(id)
         if not custom_buttons_settings.data[id] then return false end
         custom_buttons_settings.data[id] = nil
@@ -375,13 +340,6 @@ function QuickSettingsPlugin:init()
     --   Dispatcher:execute(settings, exec_props)                  -> executa
     --     todas as ações presentes na entrada (Fase 4, usado abaixo na Fase 3)
     -- ============================================================
-
-    -- Título legível de uma única ação. Nunca falha: se o id não existir
-    -- (ex: veio de um plugin desinstalado), o próprio Dispatcher devolve
-    -- "Unknown item" em vez de erro/nil.
-    local function getActionTitle(action_id)
-        return Dispatcher:getNameFromItem(action_id, nil, true)
-    end
 
     -- Detecção de plugins otimizada baseada no sistema de arquivos do KOReader
     local function hasPlugin(name)
@@ -1279,11 +1237,6 @@ function QuickSettingsPlugin:init()
         multiswipe_fallback = function(tm, ges) handlePanelGesture(tm, ges, false) end,
     })
 
-    local orig_switchMenuTab = TouchMenu.switchMenuTab
-    function TouchMenu:switchMenuTab(tab_num)
-        orig_switchMenuTab(self, tab_num)
-    end
-
     local orig_onCloseWidget = TouchMenu.onCloseWidget
     function TouchMenu:onCloseWidget()
         self._qs_refs = nil; self._qs_opening_pan = false
@@ -1396,6 +1349,11 @@ function QuickSettingsPlugin:init()
             local ir = IconWidget:new{ icon = "chevron.right", width = Pager.PN_ICON_SZ, height = Pager.PN_ICON_SZ, alpha = true }
             il:paintTo(bb, x + math.floor((Pager.CHEV_W - Pager.PN_ICON_SZ) / 2), icon_y)
             ir:paintTo(bb, x + w - Pager.CHEV_W + math.floor((Pager.CHEV_W - Pager.PN_ICON_SZ) / 2), icon_y)
+            -- Recriados a cada repaint (a cada troca de página) — sem
+            -- :free() aqui, o buffer de cada ícone vazava a cada vez que o
+            -- picker era repintado.
+            il:free()
+            ir:free()
         end
     end
 
@@ -1472,7 +1430,9 @@ function QuickSettingsPlugin:init()
 
         local back_sz = Screen:scaleBySize(24)
         local back_gap = Screen:scaleBySize(6)
+        local picker_icon_widgets = {}
         local back_iw = IW:new{ icon = "chevron.left", width = back_sz, height = back_sz }
+        table.insert(picker_icon_widgets, back_iw)
 
         local content_w = sw - 2 * pad
         local cols = math.max(4, math.floor(content_w / Screen:scaleBySize(78)))
@@ -1510,6 +1470,8 @@ function QuickSettingsPlugin:init()
                 local is_sel = (current_icon == name)
                 local short = displayName(item)
                 local cell_brd = is_sel and Screen:scaleBySize(2) or Screen:scaleBySize(1)
+                local cell_icon = IW:new{ file = item.file or nil, icon = item.file and nil or name, width = icon_sz, height = icon_sz, alpha = true }
+                table.insert(picker_icon_widgets, cell_icon)
                 table.insert(row_g, FC:new{
                     width = cell_w, height = cell_h, bordersize = cell_brd,
                     color = is_sel and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_LIGHT_GRAY,
@@ -1519,7 +1481,7 @@ function QuickSettingsPlugin:init()
                         dimen = Geom:new{ w = cell_w - cell_pad*2 - 2*cell_brd, h = cell_h - cell_pad*2 - 2*cell_brd },
                         VG:new{
                             align = "center",
-                            IW:new{ file = item.file or nil, icon = item.file and nil or name, width = icon_sz, height = icon_sz, alpha = true },
+                            cell_icon,
                             TW:new{ text = short, face = label_face, max_width = label_max_w, padding = 0 },
                         },
                     },
@@ -1539,6 +1501,12 @@ function QuickSettingsPlugin:init()
             closed = true
             UIManager:close(dialog, "ui")
             UIManager:forceRePaint()
+            -- Sem isso, cada abertura do picker (uma por troca de ícone de
+            -- botão customizado) deixava pra trás o buffer de imagem de
+            -- todo ícone da grade (potencialmente centenas: pasta do
+            -- plugin + ícones do usuário + resources/icons/mdlight
+            -- inteiro do KOReader) sem nunca liberar.
+            for _, iw in ipairs(picker_icon_widgets) do iw:free() end
         end
         local function goToPage(p)
             if p < 1 or p > total_pages then return end
