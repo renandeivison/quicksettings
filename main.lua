@@ -249,6 +249,12 @@ end
 -- ============================================================
 
 function QuickSettingsPlugin:init()
+    local DataStorage = require("datastorage")
+    local src_dir = self.path .. "/icons/"
+    local dest_dir = DataStorage:getDataDir() .. "/icons/"
+    os.execute("mkdir -p '" .. dest_dir .. "'")
+    os.execute("cp -f '" .. src_dir .. "'* '" .. dest_dir .. "' 2>/dev/null")
+
     local config_default = {
         button_order = { "focus", "wifi", "night", "frontlight", "rotate", "rotation", "usb", "search", "cloud", "zlibrary", "calibre", "calibre_search", "streak", "localsend", "stats_progress", "stats_calendar", "battery_stats", "restart", "exit", "sleep", "quickrss", "opds", "puzzle", "crossword", "connections", "casualchess", "kosync", "filebrowserplus", "bookfusion" },
         show_buttons = {
@@ -1626,9 +1632,17 @@ function QuickSettingsPlugin:init()
     -- frontend/apps/reader/modules/readermenu.lua:416: onShowMenu só chama
     -- setUpdateItemTable() (onde buildSettingsMenu roda) quando
     -- tab_item_table ainda é nil.
+    -- Não força mais um rebuild via setUpdateItemTable original: chamar
+    -- essa função do KOReader uma segunda vez na mesma instância de menu
+    -- crasha dentro de frontend/ui/menusorter.lua (mergeAndSort indexando
+    -- um "sorting_hint_menu" nil) — não é reentrante, e isso está fora do
+    -- nosso controle. A solução real foi tornar "Buttons" um
+    -- sub_item_table_func (ver buildButtonToggleItems acima); "Custom
+    -- buttons" já se atualiza via mutação direta de parent_items, e
+    -- "Arrange buttons" já reconstrói sort_items a cada abertura. Não
+    -- sobrou nada pra essa função invalidar — mantida como no-op só pra
+    -- não quebrar as chamadas existentes.
     local function invalidateMenuCache()
-        if self.ui and self.ui.menu then
-            end
     end
 
     -- Pergunta o nome do botão (InputDialog), igual prompt_label do zen_ui.
@@ -1827,7 +1841,15 @@ function QuickSettingsPlugin:init()
         touch_menu:updateItems(1)
     end
 
-    local function buildSettingsMenu()
+    -- Reconstrói a lista de "Buttons" (mostrar/ocultar) do zero toda vez
+    -- que é aberta. Precisa ser sub_item_table_func (não uma tabela
+    -- estática montada uma única vez dentro de buildSettingsMenu) porque
+    -- buildSettingsMenu só roda uma vez por instância de FileManagerMenu/
+    -- ReaderMenu — chamar de novo o setUpdateItemTable original do
+    -- KOReader pra forçar esse rebuild NÃO é seguro (não é reentrante:
+    -- ver invalidateMenuCache mais abaixo). Isso é o que faz um botão
+    -- customizado novo/apagado aparecer certo aqui sem reiniciar.
+    local function buildButtonToggleItems()
         local button_toggle_items = {}
         for _, id in ipairs(config.button_order) do
             if button_defs[id] then
@@ -1849,7 +1871,10 @@ function QuickSettingsPlugin:init()
                 UIManager:show(SortWidget:new{ title = _("Arrange quick settings buttons"), item_table = sort_items, callback = function() for i, item in ipairs(sort_items) do config.button_order[i] = item.orig_item end; saveConfig() end })
             end,
         })
+        return button_toggle_items
+    end
 
+    local function buildSettingsMenu()
         local custom_buttons_items = {
             { text = _("Adicionar botão customizado"), keep_menu_open = true, separator = true, callback = openNewCustomButtonPicker },
         }
@@ -1860,7 +1885,7 @@ function QuickSettingsPlugin:init()
         return {
             text = _("Quick settings"),
             sub_item_table = {
-                { text = _("Buttons"), sub_item_table = button_toggle_items },
+                { text = _("Buttons"), sub_item_table_func = buildButtonToggleItems },
                 { text = _("Custom buttons"), sub_item_table = custom_buttons_items },
                 { text = _("Show brightness slider"), checked_func = function() return config.show_frontlight end, callback = function() config.show_frontlight = not config.show_frontlight; saveConfig() end },
                 { text = _("Show warmth slider"), checked_func = function() return config.show_warmth end, callback = function() config.show_warmth = not config.show_warmth; saveConfig() end, separator = true },
