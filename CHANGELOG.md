@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Built-in buttons now have editable names and icons under **Quick settings → Button appearance**, with separate reset options. Overrides are stored in KOReader settings and survive plugin reinstalls.
+- Added 14 Tabler icons for custom shortcuts: body scan, AppGallery, brightness, half brightness, RSS file, letter spacing, matrix, news, notes, eye scan, trace scan, text recognition, user scan, and Wi-Fi.
+
+### Changed
+
+- Custom buttons are saved outside the plugin folder in `DataStorage:getSettingsDir()/quicksettings_custom_buttons.lua`. Existing plugin-local `custom_buttons.lua` entries are imported once, including names, icons, and actions.
+- New custom buttons start with the name `none`.
+- Replaced the main tab icon with Tabler's `adjustments-heart` icon. The new main and `xquick_` icons use explicit black strokes (`#000000`) for KOReader compatibility.
+- The icon picker hides the `xquick_` filename prefix, matching its existing handling of `quick_`, `tab_`, and `lookup_`.
+
+### Fixed
+
+- Replaced Portuguese source labels in custom button creation, editing, and deletion with English strings while preserving translation hooks.
+- Fixed duplicate buttons after deleting shortcuts and rearranging buttons. Arrangement replaces the whole saved order, and duplicate IDs already stored in settings are repaired on startup.
+- Opening the QuickSettings tab in the reader closes the bottom font/margin panel so it cannot intercept button taps. Other reader tabs retain their existing behavior.
+- Excluded macOS `._*` metadata files from the icon picker.
+- Restored or imported custom button IDs advance the allocation counter to prevent existing shortcuts from being overwritten.
+
+### Upgrade notes
+
+- For the first upgrade, copy the new plugin files over the existing folder and restart KOReader **before deleting the old plugin folder**. This allows automatic migration of `custom_buttons.lua`.
+- Back up `settings/quicksettings_custom_buttons.lua`, KOReader's `settings.reader.lua`, and any custom icon files. Buttons deleted by an earlier reinstall can only be recovered from a backup.
+- The original `custom_buttons.lua` is retained but is not synchronized after migration. Older plugin versions do not read the new storage, so downgrading requires a backup of the legacy file and can lose edits made after migration.
+
+
 ## v1.2.0 - 2026-07-01
 
 ### Bug Fixes

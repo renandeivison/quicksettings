@@ -40,9 +40,11 @@ A fast, gesture-friendly control panel for [KOReader](https://github.com/koreade
 - **Persistent settings** — button visibility, order, slider visibility, and Focus Mode preferences are saved and restored automatically.
 # Button Icons Reference
 
-Coppy the icons to 
-`Koreader/icons`  
-If a `.png` file is missing, the plugin automatically falls back to the `.svg` variant at the same path.
+Bundled icons live in the plugin's `icons/` directory and are copied to KOReader's data-directory `icons/` folder when the plugin starts. Additional user icons can also be placed in that data-directory folder. Restart KOReader after replacing icon files so cached images reload.
+
+For new SVGs from [Tabler Icons](https://tabler.io/icons), change `stroke="currentColor"` to `stroke="#000000"`. KOReader's NanoSVG renderer treats the unsupported `currentColor` value as grey. Preserve `fill="none"` and any `stroke="none"` used for invisible paths; there is no need to change the icon's geometry or stroke width.
+
+The picker displays SVGs from the plugin, user icons, and KOReader's built-in icon folder. It hides the `quick_`, `xquick_`, `tab_`, and `lookup_` prefixes in labels and ignores `._*` metadata and `.bak.svg` files. Stored icon identifiers retain their full filenames without the extension.
 
 | Button | Icon filename |
 |---|---|
@@ -112,9 +114,10 @@ This makes Focus Mode especially useful on devices where you've installed severa
 
 - Open the **QuickSettings** tab from the main menu to see the button grid and, if enabled, the brightness/warmth sliders.
 - Tap a button to run its action; active/enabled states are shown with a filled circle.
-- Long-press any button (or use the "Arrange buttons" option in settings) to reorder or hide buttons.
+- Use **Quick settings → Buttons → Arrange buttons** to reorder buttons, and the checkboxes under **Buttons** to show or hide them. Some buttons have separate long-press actions.
 - Go to **Quick settings** in the settings menu to:
   - Show/hide individual buttons
+  - Edit built-in button names and icons under **Button appearance**, or create and edit **Custom buttons**
   - Toggle the brightness and warmth sliders
   - Show available networks automatically when turning Wi-Fi on
   - Set QuickSettings to always open first
@@ -127,3 +130,37 @@ This makes Focus Mode especially useful on devices where you've installed severa
 
 ### Special Appreciation & Credits
 I want to express my deep, sincere gratitude once again to **[@AnthonyGress](https://github.com/AnthonyGress)** and **[@qewer33](https://github.com/qewer33)**. A massive portion of this plugin's underlying layout handling, tracking logic, and interface engine was derived directly from their incredible work and foundational open-source contributions to the KOReader development community.
+
+## Custom button storage
+
+Custom buttons are saved in `settings/quicksettings_custom_buttons.lua` in KOReader's data directory, outside the plugin folder. Replacing or reinstalling `quicksettings.koplugin` keeps the saved names, icons, and actions.
+
+On first startup, this version imports an existing `quicksettings.koplugin/custom_buttons.lua` automatically. Install it over the existing plugin folder and launch KOReader once before deleting that folder. If a previous reinstall already removed that file, restore it from a backup before starting this version. The old file is retained, but is not imported again after migration, even if you delete all custom buttons.
+
+## Built-in button appearance
+
+Open **Quick Settings → Button appearance**, choose a built-in button, then tap **Icon** or **Name**. Each has its own reset option. Names and icons are saved in KOReader settings and survive plugin reinstalls. A custom name replaces dynamic labels such as the Wi-Fi network name until reset. Custom button names and icons remain available under **Custom buttons**.
+
+## Backups and downgrades
+
+Back up `settings/quicksettings_custom_buttons.lua` for custom button definitions, KOReader's `settings.reader.lua` for button order, visibility, built-in name/icon overrides, and other plugin preferences, and any user icon files. Paths are relative to KOReader's data directory; the settings directory is resolved with `DataStorage:getSettingsDir()`.
+
+The new custom button settings file contains a `buttons` table keyed by button ID. The legacy plugin-local `custom_buttons.lua` remains untouched after import and is not kept in sync. Older plugin versions only read the legacy file, so they will not see changes saved in the new location. Retain a backup before downgrading. Migrating to another device also requires copying the referenced icon files.
+
+## Icon attribution
+
+The replacement main icon (`quicksettings.svg`, Tabler `adjustments-heart`) and all `xquick_*.svg` additions come from [Tabler Icons](https://tabler.io/icons), by Paweł Kuna, under the [MIT license](licenses/tabler-icons-LICENSE.txt). Their strokes were changed from `currentColor` to explicit black for KOReader rendering. This attribution covers these additions, not the provenance of every pre-existing icon in the repository.
+
+## Validation
+
+Run the regression checks from the repository root with LuaJIT:
+
+```sh
+luajit tests/button_order.lua
+luajit tests/custom_button_storage.lua
+luajit tests/reader_menu.lua
+luajit tests/builtin_icons.lua
+luajit -b main.lua /tmp/quicksettings-main.luac
+```
+
+The checks exercise configuration and menu code with small substitutes for KOReader services. Device validation should also cover opening QuickSettings while reading, tapping buttons and sliders, editing/resetting built-in names and icons, selecting custom icons, deleting/reordering shortcuts, restarting, and reinstalling after migration. Confirm that a saved shortcut still runs its selected action after reinstalling.

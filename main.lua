@@ -269,6 +269,8 @@ function QuickSettingsPlugin:init()
         show_warmth = true,
         show_available_networks = true,
         next_custom_id = 0,
+        button_icons = {},
+        button_names = {},
         focus_mode = false,
         focus_hidden_tabs = {},
     }
@@ -279,13 +281,26 @@ function QuickSettingsPlugin:init()
     end
     if type(config.show_buttons) ~= "table" then config.show_buttons = util.tableDeepCopy(config_default.show_buttons) end
     if type(config.button_order) ~= "table" then config.button_order = util.tableDeepCopy(config_default.button_order) end
+    if type(config.button_icons) ~= "table" then config.button_icons = {} end
+    if type(config.button_names) ~= "table" then config.button_names = {} end
     -- Backfill any new button keys missing from a previously saved config
     for k, v in pairs(config_default.show_buttons) do
         if config.show_buttons[k] == nil then config.show_buttons[k] = v end
     end
-    -- Backfill any new buttons missing from a previously saved button_order
+    -- Repair duplicate IDs saved by older versions, preserving the first position.
     local _button_order_set = {}
-    for _, id in ipairs(config.button_order) do _button_order_set[id] = true end
+    local unique_order = {}
+    local had_duplicate_buttons = false
+    for _, id in ipairs(config.button_order) do
+        if not _button_order_set[id] then
+            table.insert(unique_order, id)
+            _button_order_set[id] = true
+        else
+            had_duplicate_buttons = true
+        end
+    end
+    config.button_order = unique_order
+    -- Backfill any new buttons missing from a previously saved button_order
     for _, id in ipairs(config_default.button_order) do
         if not _button_order_set[id] then table.insert(config.button_order, id) end
     end
@@ -293,11 +308,12 @@ function QuickSettingsPlugin:init()
     local function saveConfig()
         G_reader_settings:saveSetting("quick_settings_plugin", config)
     end
+    if had_duplicate_buttons then saveConfig() end
 
     -- ============================================================
     -- Fase 1 (schema do zen_ui): Camada de dados dos botões customizados
-    -- Arquivo próprio, dentro da pasta do plugin (self.path preenchido pelo
-    -- próprio KOReader antes do init() — frontend/pluginloader.lua:206).
+    -- Stored in KOReader settings so reinstalling the plugin keeps custom buttons.
+    -- Existing plugin-local custom_buttons.lua files are imported once.
     --
     -- Formato de cada entrada, portado de zen_ui.koplugin (confirmado lendo
     -- modules/settings/sections/app_launcher_settings.lua:417-443):
@@ -312,11 +328,30 @@ function QuickSettingsPlugin:init()
     -- reconstrói SÓ entry.action do zero, nunca toca entry.name/entry.icon.
     -- ============================================================
 
-    local custom_buttons_file = self.path .. "/custom_buttons.lua"
-    local custom_buttons_settings = LuaSettings:open(custom_buttons_file)
+    local custom_buttons_file = DataStorage:getSettingsDir() .. "/quicksettings_custom_buttons.lua"
+    local custom_buttons_storage = LuaSettings:open(custom_buttons_file)
+    if not custom_buttons_storage:has("buttons") then
+        -- An explicit empty table also marks migration complete, so deleted buttons
+        -- cannot reappear from a leftover legacy file on the next startup.
+        local legacy = LuaSettings:open(self.path .. "/custom_buttons.lua")
+        custom_buttons_storage:saveSetting("buttons", legacy.data)
+        custom_buttons_storage:flush()
+    end
+    local custom_buttons_settings = LuaSettings:wrap(custom_buttons_storage:readSetting("buttons"))
 
     local function saveCustomButtons()
-        custom_buttons_settings:flush()
+        custom_buttons_storage:flush()
+    end
+
+    -- Restored buttons may have IDs newer than the main settings counter.
+    local next_custom_id = tonumber(config.next_custom_id) or 0
+    for id in pairs(custom_buttons_settings.data) do
+        local number = tonumber(id:match("^custom_(%d+)$"))
+        if number then next_custom_id = math.max(next_custom_id, number) end
+    end
+    if config.next_custom_id ~= next_custom_id then
+        config.next_custom_id = next_custom_id
+        saveConfig()
     end
 
     local function removeCustomButton(id)
@@ -1071,10 +1106,10 @@ function QuickSettingsPlugin:init()
                 end
 
                 local def = entry.def
-                local label_text = def.label_func and def.label_func() or def.label
+                local label_text = config.button_names[entry.id] or (def.label_func and def.label_func() or def.label)
                 local active   = def.active_func   and def.active_func()   or false
                 local disabled = def.disabled_func and def.disabled_func() or false
-                local btn_widget, btn_circle = makeActionButton(def.icon, label_text, active and not disabled, disabled)
+                local btn_widget, btn_circle = makeActionButton(config.button_icons[entry.id] or def.icon, label_text, active and not disabled, disabled)
 
                 table.insert(refs.buttons, { widget = btn_circle, callback = not disabled and function() def.callback(touch_menu) end or nil, hold_callback = def.hold_callback and function() def.hold_callback(touch_menu) end or nil })
                 table.insert(refs.button_layout_row, btn_circle)
@@ -1372,7 +1407,7 @@ function QuickSettingsPlugin:init()
             if lfs.attributes(dir, "mode") ~= "directory" then return end
             local entries = {}
             for f in lfs.dir(dir) do
-                if f:match("%.svg$") and not f:match("%.bak%.svg$") then
+                if f:match("%.svg$") and not f:match("^%._") and not f:match("%.bak%.svg$") then
                     local name = f:sub(1, -5)
                     if not seen[name] then entries[#entries + 1] = { name = name, file = dir .. "/" .. f } end
                 end
@@ -1396,10 +1431,10 @@ function QuickSettingsPlugin:init()
         local icons_list = getCustomButtonIconList()
         if #icons_list == 0 then
             local InfoMessage = require("ui/widget/infomessage")
-            UIManager:show(InfoMessage:new{ text = _("Nenhum ícone encontrado.") })
+            UIManager:show(InfoMessage:new{ text = _("No icons found.") })
             return
         end
-        local function displayName(item) return (item.name:gsub("^quick_", ""):gsub("^tab_", ""):gsub("^lookup_", "")) end
+        local function displayName(item) return (item.name:gsub("^xquick_", ""):gsub("^quick_", ""):gsub("^tab_", ""):gsub("^lookup_", "")) end
         table.sort(icons_list, function(a, b) return displayName(a):lower() < displayName(b):lower() end)
 
         local Screen = require("device").screen
@@ -1618,12 +1653,12 @@ function QuickSettingsPlugin:init()
         local InputDialog = require("ui/widget/inputdialog")
         local dialog
         dialog = InputDialog:new{
-            title = _("Nome do botão"),
+            title = _("Button name"),
             input = entry.name or "",
             buttons = {{
-                { text = _("Cancelar"), callback = function() UIManager:close(dialog) end },
+                { text = _("Cancel"), callback = function() UIManager:close(dialog) end },
                 {
-                    text = _("Definir"), is_enter_default = true,
+                    text = _("Set"), is_enter_default = true,
                     callback = function()
                         local name = trim(dialog:getInputText())
                         if name ~= "" then entry.name = name end
@@ -1679,16 +1714,16 @@ function QuickSettingsPlugin:init()
         table.insert(items, {
             text_func = function()
                 if entry.action and next(entry.action) then
-                    return T(_("Ação: %1"), Dispatcher:menuTextFunc(entry.action))
+                    return T(_("Action: %1"), Dispatcher:menuTextFunc(entry.action))
                 end
-                return _("Ação: (nenhuma)")
+                return _("Action: (none)")
             end,
             keep_menu_open = true,
             sub_item_table = action_items,
         })
 
         table.insert(items, {
-            text_func = function() return T(_("Ícone: %1"), entry.icon or _("nenhum")) end,
+            text_func = function() return T(_("Icon: %1"), entry.icon or _("none")) end,
             keep_menu_open = true,
             callback = function(touch_menu)
                 showCustomButtonIconPicker(entry.icon, function(name)
@@ -1710,13 +1745,13 @@ function QuickSettingsPlugin:init()
         })
 
         table.insert(items, {
-            text_func = function() return T(_("Nome: %1"), entry.name or id) end,
+            text_func = function() return T(_("Name: %1"), entry.name or id) end,
             keep_menu_open = true,
             callback = function(touch_menu) promptCustomButtonName(entry, touch_menu) end,
         })
 
         table.insert(items, {
-            text = _("Apagar"),
+            text = _("Delete"),
             separator = true,
             callback = function(touch_menu)
                 if entry._qs_draft_commit then
@@ -1725,8 +1760,8 @@ function QuickSettingsPlugin:init()
                 end
                 local ConfirmBox = require("ui/widget/confirmbox")
                 UIManager:show(ConfirmBox:new{
-                    text = _("Apagar este botão?"),
-                    ok_text = _("Apagar"),
+                    text = _("Delete this button?"),
+                    ok_text = _("Delete"),
                     ok_callback = function()
                         local real_id = findCustomButtonId(entry) or id
                         uninstallCustomButtonDef(real_id)
@@ -1747,7 +1782,7 @@ function QuickSettingsPlugin:init()
         -- mais nada além disso — cada campo (Ação/Ícone/Nome) já salva e
         -- atualiza a lista sozinho assim que é alterado.
         table.insert(items, 1, {
-            text = _("Concluir"),
+            text = _("Done"),
             separator = true,
             callback = function(touch_menu)
                 if touch_menu then touch_menu:backToUpperMenu() end
@@ -1788,7 +1823,7 @@ function QuickSettingsPlugin:init()
     local function openNewCustomButtonPicker(touch_menu)
         if not (touch_menu and type(touch_menu.updateItems) == "function") then return end
         local parent_items = touch_menu.item_table
-        local draft = { name = _("Botão personalizado"), action = {} }
+        local draft = { name = _("none"), action = {} }
         local committed = false
         draft._qs_draft_commit = function()
             if committed or not (draft.action and next(draft.action)) then return end
@@ -1822,7 +1857,7 @@ function QuickSettingsPlugin:init()
         for _, id in ipairs(config.button_order) do
             if button_defs[id] then
                 table.insert(button_toggle_items, {
-                    text = button_display_names[id] or id,
+                    text_func = function() return config.button_names[id] or button_display_names[id] or id end,
                     checked_func = function() return config.show_buttons[id] end,
                     callback = function() config.show_buttons[id] = not config.show_buttons[id]; saveConfig() end,
                 })
@@ -1834,17 +1869,105 @@ function QuickSettingsPlugin:init()
                 local SortWidget = require("ui/widget/sortwidget")
                 local sort_items = {}
                 for _, id in ipairs(config.button_order) do
-                    if button_defs[id] then table.insert(sort_items, { text = button_display_names[id], orig_item = id, dim = not config.show_buttons[id] }) end
+                    if button_defs[id] then table.insert(sort_items, { text = config.button_names[id] or button_display_names[id], orig_item = id, dim = not config.show_buttons[id] }) end
                 end
-                UIManager:show(SortWidget:new{ title = _("Arrange quick settings buttons"), item_table = sort_items, callback = function() for i, item in ipairs(sort_items) do config.button_order[i] = item.orig_item end; saveConfig() end })
+                UIManager:show(SortWidget:new{
+                    title = _("Arrange quick settings buttons"),
+                    item_table = sort_items,
+                    callback = function()
+                        -- Replace the entire list so deleted buttons cannot leave a stale tail.
+                        config.button_order = {}
+                        for _, item in ipairs(sort_items) do
+                            table.insert(config.button_order, item.orig_item)
+                        end
+                        saveConfig()
+                    end,
+                })
             end,
         })
         return button_toggle_items
     end
 
+    local function buildButtonIconItems()
+        local items = {}
+        for index, id in ipairs(config.button_order) do
+            if config_default.show_buttons[id] ~= nil and button_defs[id] then
+                local def = button_defs[id]
+                table.insert(items, {
+                    text_func = function() return config.button_names[id] or button_display_names[id] or id end,
+                    sub_item_table = {
+                        {
+                            text_func = function()
+                                return T(_("Icon: %1"), config.button_icons[id] or def.icon)
+                            end,
+                            keep_menu_open = true,
+                            callback = function(touch_menu)
+                                showCustomButtonIconPicker(config.button_icons[id] or def.icon, function(name)
+                                    config.button_icons[id] = name
+                                    saveConfig()
+                                    if touch_menu then touch_menu:updateItems(1) end
+                                end)
+                            end,
+                        },
+                        {
+                            text = _("Reset icon to default"),
+                            keep_menu_open = true,
+                            enabled_func = function() return config.button_icons[id] ~= nil end,
+                            callback = function(touch_menu)
+                                config.button_icons[id] = nil
+                                saveConfig()
+                                if touch_menu then touch_menu:updateItems(1) end
+                            end,
+                        },
+                        {
+                            text_func = function()
+                                return T(_("Name: %1"), config.button_names[id] or button_display_names[id] or id)
+                            end,
+                            keep_menu_open = true,
+                            callback = function(touch_menu)
+                                local InputDialog = require("ui/widget/inputdialog")
+                                local dialog
+                                dialog = InputDialog:new{
+                                    title = _("Button name"),
+                                    input = config.button_names[id] or button_display_names[id] or id,
+                                    buttons = {{
+                                        { text = _("Cancel"), callback = function() UIManager:close(dialog) end },
+                                        {
+                                            text = _("Set"), is_enter_default = true,
+                                            callback = function()
+                                                local name = trim(dialog:getInputText())
+                                                config.button_names[id] = name ~= "" and name or nil
+                                                saveConfig()
+                                                UIManager:close(dialog)
+                                                if touch_menu then touch_menu:updateItems(1) end
+                                            end,
+                                        },
+                                    }},
+                                }
+                                UIManager:show(dialog)
+                                dialog:onShowKeyboard()
+                            end,
+                        },
+                        {
+                            text = _("Reset name to default"),
+                            keep_menu_open = true,
+                            enabled_func = function() return config.button_names[id] ~= nil end,
+                            callback = function(touch_menu)
+                                config.button_names[id] = nil
+                                saveConfig()
+                                if touch_menu then touch_menu:updateItems(1) end
+                            end,
+                        },
+                    },
+                })
+            end
+        end
+        return items
+    end
+
     local function buildSettingsMenu()
         local custom_buttons_items = {
-            { text = _("Adicionar botão customizado"), keep_menu_open = true, separator = true, callback = openNewCustomButtonPicker },
+            { text = _("Add custom button"), keep_menu_open = true, separator = true, callback = openNewCustomButtonPicker },
         }
         for id, _ in pairs(custom_buttons_settings.data) do
             table.insert(custom_buttons_items, buildCustomButtonMenuItem(id, custom_buttons_items))
@@ -1854,6 +1977,7 @@ function QuickSettingsPlugin:init()
             text = _("Quick settings"),
             sub_item_table = {
                 { text = _("Buttons"), sub_item_table_func = buildButtonToggleItems },
+                { text = _("Button appearance"), sub_item_table_func = buildButtonIconItems },
                 { text = _("Custom buttons"), sub_item_table = custom_buttons_items },
                 { text = _("Show brightness slider"), checked_func = function() return config.show_frontlight end, callback = function() config.show_frontlight = not config.show_frontlight; saveConfig() end },
                 { text = _("Show warmth slider"), checked_func = function() return config.show_warmth end, callback = function() config.show_warmth = not config.show_warmth; saveConfig() end, separator = true },
@@ -1932,6 +2056,20 @@ function QuickSettingsPlugin:init()
                 self.tab_item_table = filterTabsForFocus(self.tab_item_table, false)
             end
         end
+    end
+
+    local orig_reader_onShowMenu = ReaderMenu.onShowMenu
+    function ReaderMenu:onShowMenu(tab_index, do_not_show)
+        local result = orig_reader_onShowMenu(self, tab_index, do_not_show)
+        local touch_menu = self.menu_container and self.menu_container[1]
+        if not do_not_show and touch_menu and touch_menu.item_table
+                and touch_menu.item_table.panel then
+            -- KOReader may open the always-active bottom panel alongside the top menu.
+            -- Our direct button handlers bypass the normal menu-selection callback
+            -- that closes it, so close it as soon as QuickSettings is shown.
+            self.ui:handleEvent(Event:new("CloseConfigMenu"))
+        end
+        return result
     end
 
     local orig_reader_setUpdateItemTable = ReaderMenu.setUpdateItemTable
